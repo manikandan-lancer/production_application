@@ -3,62 +3,83 @@ import pandas as pd
 from sqlalchemy.orm import sessionmaker
 from database.connection import engine
 from database.models import Machine, Shift, DailyProduction
-from modules.formulas import calc_efficiency
 
-Session = sessionmaker(bind=engine)
+SessionLocal = sessionmaker(bind=engine)
 
-def generate_entries(date):
-    session = Session()
+def load_existing_entries(session, date):
+    return session.query(DailyProduction).filter(DailyProduction.date == date).all()
 
+
+def generate_new_entries(session, date):
     machines = session.query(Machine).all()
     shifts = session.query(Shift).all()
 
-    data = []
-    for sh in shifts:
-        for m in machines:
-            data.append({
+    rows = []
+    for shift in shifts:
+        for machine in machines:
+            rows.append({
                 "date": date,
-                "shift_id": sh.id,
-                "machine_id": m.id,
+                "shift_id": shift.id,
+                "machine_id": machine.id,
                 "actual": 0,
                 "scrap": 0,
                 "downtime": 0,
-                "target": m.target
+                "efficiency": 0,
+                "oee": 0
             })
 
-    return pd.DataFrame(data)
+    return pd.DataFrame(rows)
 
 
 def daily_entry_page():
-    st.header("Daily Production Entry")
+    st.title("Daily Production Entry")
+
+    session = SessionLocal()
 
     date = st.date_input("Select Date")
 
-    if st.button("Generate Records"):
-        df = generate_entries(date)
-        st.session_state["prod_df"] = df
+    # First check if this date already exists in database
+    existing = load_existing_entries(session, date)
 
-    if "prod_df" in st.session_state:
-        df = st.session_state["prod_df"]
-        edited_df = st.data_editor(df)
+    if existing:
+        st.success(f"Loaded saved records for {date}")
 
-        if st.button("Save to DB"):
-            session = Session()
+        df = pd.DataFrame([{
+            "id": row.id,
+            "date": row.date,
+            "shift_id": row.shift_id,
+            "machine_id": row.machine_id,
+            "actual": row.actual,
+            "scrap": row.scrap,
+            "downtime": row.downtime,
+            "efficiency": row.efficiency,
+            "oee": row.oee
+        } for row in existing])
 
-            for _, row in edited_df.iterrows():
-                eff = calc_efficiency(row["actual"], row["target"])
+    else:
+        st.info("No records found for this date. Creating new entries.")
+        df = generate_new_entries(session, date)
 
-                entry = DailyProduction(
-                    date=row["date"],
-                    shift_id=row["shift_id"],
-                    machine_id=row["machine_id"],
-                    actual=row["actual"],
-                    scrap=row["scrap"],
-                    downtime=row["downtime"],
-                    efficiency=eff,
-                    oee=0  # Placeholder
-                )
-                session.add(entry)
+    st.dataframe(df, use_container_width=True)
 
-            session.commit()
-            st.success("Production entries saved!")
+    if st.button("Save"):
+        # Delete previous records for this date (if any)
+        session.query(DailyProduction).filter(DailyProduction.date == date).delete()
+        session.commit()
+
+        # Insert updated rows
+        for _, row in df.iterrows():
+            new_row = DailyProduction(
+                date=row["date"],
+                shift_id=row["shift_id"],
+                machine_id=row["machine_id"],
+                actual=row["actual"],
+                scrap=row["scrap"],
+                downtime=row["downtime"],
+                efficiency=row.get("efficiency", 0),
+                oee=row.get("oee", 0)
+            )
+            session.add(new_row)
+
+        session.commit()
+        st.success("Data saved successfully!")
