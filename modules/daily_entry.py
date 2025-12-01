@@ -7,44 +7,21 @@ from database.models import Machine, Shift, DailyProduction
 SessionLocal = sessionmaker(bind=engine)
 
 
-# Load saved entries for selected date
-def load_existing_entries(session, date):
-    return session.query(DailyProduction).filter(DailyProduction.date == date).all()
-
-
-# Create NEW blank rows only if NO saved data exists
-def generate_new_entries(session, date):
-    machines = session.query(Machine).all()
-    shifts = session.query(Shift).all()
-
-    rows = []
-    for shift in shifts:
-        for machine in machines:
-            rows.append({
-                "date": date,
-                "shift_id": shift.id,
-                "machine_id": machine.id,
-                "actual": 0,
-                "scrap": 0,
-                "downtime": 0,
-                "target": machine.target
-            })
-
-    return pd.DataFrame(rows)
-
-
 def daily_entry_page():
     st.title("Daily Production Entry")
 
     session = SessionLocal()
+
+    # Select date
     date = st.date_input("Select Date")
 
-    # STEP 1: TRY TO LOAD EXISTING ROWS
-    existing_rows = load_existing_entries(session, date)
+    # ---- STEP 1: CHECK IF DATA EXISTS FOR DATE ----
+    saved_data = session.query(DailyProduction).filter(
+        DailyProduction.date == date
+    ).all()
 
-    if existing_rows:
-        # --- FOUND SAVED RECORDS ---
-        st.success(f"Loaded saved records for {date}")
+    if saved_data:
+        st.success(f"Loaded saved data for {date}")
 
         df = pd.DataFrame([
             {
@@ -57,25 +34,46 @@ def daily_entry_page():
                 "downtime": row.downtime,
                 "target": session.query(Machine).filter(Machine.id == row.machine_id).first().target
             }
-            for row in existing_rows
+            for row in saved_data
         ])
 
     else:
-        # --- NO RECORDS FOUND → GENERATE ONLY ONCE ---
-        st.info(f"No saved data found for {date}. Generating new empty rows.")
-        df = generate_new_entries(session, date)
+        st.warning(f"No saved data found for {date}. Generating new rows.")
 
-    edited_df = st.data_editor(df, use_container_width=True, num_rows="dynamic")
+        machines = session.query(Machine).all()
+        shifts = session.query(Shift).all()
 
-    # Save button
+        rows = []
+
+        # create one row per machine per shift
+        for shift in shifts:
+            for machine in machines:
+                rows.append({
+                    "date": date,
+                    "shift_id": shift.id,
+                    "machine_id": machine.id,
+                    "actual": 0,
+                    "scrap": 0,
+                    "downtime": 0,
+                    "target": machine.target
+                })
+
+        df = pd.DataFrame(rows)
+
+    # ---- DISPLAY EDITABLE TABLE ----
+    edited_df = st.data_editor(df, use_container_width=True)
+
+    # ---- SAVE BUTTON ----
     if st.button("Save to DB"):
-        # Delete previous records for that date
-        session.query(DailyProduction).filter(DailyProduction.date == date).delete()
+        # Delete old data for that date
+        session.query(DailyProduction).filter(
+            DailyProduction.date == date
+        ).delete()
         session.commit()
 
-        # Insert new ones
+        # Insert new data
         for _, row in edited_df.iterrows():
-            new_row = DailyProduction(
+            entry = DailyProduction(
                 date=row["date"],
                 shift_id=row["shift_id"],
                 machine_id=row["machine_id"],
@@ -85,7 +83,7 @@ def daily_entry_page():
                 efficiency=0,
                 oee=0
             )
-            session.add(new_row)
+            session.add(entry)
 
         session.commit()
-        st.success("Saved successfully!")
+        st.success("Data saved successfully!")
