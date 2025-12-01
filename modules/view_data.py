@@ -1,38 +1,41 @@
 import streamlit as st
 import pandas as pd
 from sqlalchemy.orm import sessionmaker
-
 from database.connection import engine
-from database.models import Machine, Shift, DailyProduction
+from database.models import DailyProduction, Machine, Employee, Shift, Mill, Department
 
 SessionLocal = sessionmaker(bind=engine)
 
-
 def view_data_page():
-    st.title("📊 View Stored Data")
+    st.title("View Saved Production Data")
 
     session = SessionLocal()
 
-    option = st.selectbox(
-        "Select Table",
-        ["Machines", "Shifts", "Daily Production"]
-    )
+    data = session.query(DailyProduction).all()
 
-    if option == "Machines":
-        data = session.query(Machine).all()
+    rows = []
+    for d in data:
+        machine = session.query(Machine).filter(Machine.id == d.machine_id).first()
+        emp = session.query(Employee).filter(Employee.id == d.employee_id).first()
+        shift = session.query(Shift).filter(Shift.id == d.shift_id).first()
+        mill = session.query(Mill).filter(Mill.id == d.mill_id).first()
+        dept = session.query(Department).filter(Department.id == d.department_id).first()
 
-    elif option == "Shifts":
-        data = session.query(Shift).all()
+        rows.append({
+            "Date": d.date,
+            "Mill": mill.mill_name if mill else "",
+            "Department": dept.dept_name if dept else "",
+            "Shift": shift.shift_name if shift else "",
+            "Machine": machine.frame_number if machine else "",
+            "Employee": emp.employee_name if emp else "",
+            "Actual": d.actual,
+            "Waste": d.waste,
+            "Run Hr": d.run_hr,
+            "Prod": d.prod,
+            "TS": d.ts,
+            "Count": d.count,
+            "Remarks": d.remarks,
+        })
 
-    else:
-        data = session.query(DailyProduction).all()
-
-    if not data:
-        st.warning("No data found in this table.")
-        return
-
-    # Convert SQLAlchemy objects → DataFrame
-    df = pd.DataFrame([row.__dict__ for row in data])
-    df.drop(columns=["_sa_instance_state"], inplace=True)
-
+    df = pd.DataFrame(rows)
     st.dataframe(df, use_container_width=True)

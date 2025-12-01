@@ -12,35 +12,39 @@ def machine_master_page():
 
     mills = session.query(Mill).all()
     mill_map = {m.id: m.mill_name for m in mills}
-    mill_id = st.selectbox("Mill", mill_map.keys(), format_func=lambda x: mill_map[x])
 
     depts = session.query(Department).all()
-    dept_map = {d.id: d.department_name for d in depts}
-    dept_id = st.selectbox("Department", dept_map.keys(), format_func=lambda x: dept_map[x])
+    dept_map = {d.id: d.dept_name for d in depts}
 
-    frame_number = st.text_input("Frame Number")
+    mill_id = st.selectbox("Select Mill", mill_map.keys(), format_func=lambda x: mill_map[x])
+    dept_id = st.selectbox("Select Department", dept_map.keys(), format_func=lambda x: dept_map[x])
+
+    frame_no = st.text_input("Frame Number")
     product = st.text_input("Product")
-    speed = st.number_input("Speed", min_value=0)
-    tpi = st.number_input("TPI", min_value=0)
-    std_hank = st.number_input("Std Hank", min_value=0.0)
+    speed = st.number_input("Speed", min_value=0.0)
+    tpi = st.number_input("TPI", min_value=0.0)
+    hank = st.number_input("STD Hank", min_value=0.0)
+    cycle = st.number_input("Cycle Time", min_value=0.0)
     target = st.number_input("Target", min_value=0)
 
-    if st.button("Save Machine"):
+    if st.button("Add Machine"):
         machine = Machine(
             mill_id=mill_id,
             department_id=dept_id,
-            frame_number=frame_number,
+            frame_number=frame_no,
             product=product,
             speed=speed,
             tpi=tpi,
-            std_hank=std_hank,
+            std_hank=hank,
+            cycle_time=cycle,
             target=target
         )
         session.add(machine)
         session.commit()
-        st.success("Machine Saved")
+        st.success("Machine Added")
 
-    st.subheader("Machines:")
+    st.subheader("Machines List")
     machines = session.query(Machine).all()
+
     for m in machines:
-        st.write(f"{m.frame_number} — {m.product}")
+        st.write(f"{m.id} | Frame {m.frame_number} | Mill {m.mill_id} | Dept {m.department_id}")

@@ -9,7 +9,6 @@ from database.models import (
 
 SessionLocal = sessionmaker(bind=engine)
 
-
 def daily_entry_page():
     st.title("Daily Production Entry")
 
@@ -18,32 +17,17 @@ def daily_entry_page():
     # ------------------ FILTERS ------------------
     date = st.date_input("Select Date")
 
-    # Mill
     mills = session.query(Mill).all()
     mill_map = {m.id: m.mill_name for m in mills}
-    mill_id = st.selectbox(
-        "Select Mill",
-        mill_map.keys(),
-        format_func=lambda x: mill_map[x]
-    )
+    mill_id = st.selectbox("Mill", mill_map.keys(), format_func=lambda x: mill_map[x])
 
-    # Department
     depts = session.query(Department).all()
-    dept_map = {d.id: d.department_name for d in depts}
-    dept_id = st.selectbox(
-        "Select Department",
-        dept_map.keys(),
-        format_func=lambda x: dept_map[x]
-    )
+    dept_map = {d.id: d.dept_name for d in depts}
+    dept_id = st.selectbox("Department", dept_map.keys(), format_func=lambda x: dept_map[x])
 
-    # Shift
     shifts = session.query(Shift).all()
     shift_map = {s.id: s.shift_name for s in shifts}
-    shift_id = st.selectbox(
-        "Select Shift",
-        shift_map.keys(),
-        format_func=lambda x: shift_map[x]
-    )
+    shift_id = st.selectbox("Shift", shift_map.keys(), format_func=lambda x: shift_map[x])
 
     # ------------------ LOAD EXISTING ------------------
     saved = session.query(DailyProduction).filter(
@@ -59,12 +43,13 @@ def daily_entry_page():
         rows = []
         for s in saved:
             machine = session.query(Machine).filter(Machine.id == s.machine_id).first()
+            emp = session.query(Employee).filter(Employee.id == s.employee_id).first()
+
             rows.append({
-                "id": s.id,
                 "machine_id": s.machine_id,
                 "frame_number": machine.frame_number if machine else "",
-                "employee_id": s.employee_id,
-                "employee_name": s.employee.employee_name if s.employee else "",
+                "employee_id": emp.employee_no if emp else "",
+                "employee_name": emp.employee_name if emp else "",
                 "actual": s.actual,
                 "waste": s.waste,
                 "run_hr": s.run_hr,
@@ -78,7 +63,7 @@ def daily_entry_page():
         df = pd.DataFrame(rows)
 
     else:
-        st.warning("No records found. Generating new rows.")
+        st.warning("Generating new data...")
 
         machines = session.query(Machine).filter(
             Machine.mill_id == mill_id,
@@ -103,25 +88,18 @@ def daily_entry_page():
             for m in machines
         ])
 
-    # ------------------ AUTO-FILL EMPLOYEE NAME ------------------
-    def fill_employee_name(df):
-        for index, row in df.iterrows():
-            if str(row["employee_id"]).strip() != "":
-                emp = session.query(Employee).filter(
-                    Employee.employee_no == str(row["employee_id"])
-                ).first()
-                if emp:
-                    df.at[index, "employee_name"] = emp.employee_name
-        return df
+    # Auto-fill employee name
+    for idx, row in df.iterrows():
+        emp_no = str(row["employee_id"]).strip()
+        if emp_no:
+            emp = session.query(Employee).filter(Employee.employee_no == emp_no).first()
+            if emp:
+                df.at[idx, "employee_name"] = emp.employee_name
 
-    df = fill_employee_name(df)
-
-    # ------------------ SHOW EDITOR ------------------
     edited_df = st.data_editor(df, use_container_width=True)
 
-    # ------------------ SAVE TO DB ------------------
+    # Save
     if st.button("Save Data"):
-        # Delete old rows for the filter
         session.query(DailyProduction).filter(
             DailyProduction.date == date,
             DailyProduction.mill_id == mill_id,
@@ -130,15 +108,17 @@ def daily_entry_page():
         ).delete()
         session.commit()
 
-        # Insert updated rows
         for _, r in edited_df.iterrows():
-            new = DailyProduction(
+            emp = session.query(Employee).filter(Employee.employee_no == str(r["employee_id"])).first()
+            emp_id = emp.id if emp else None
+
+            entry = DailyProduction(
                 date=date,
                 mill_id=mill_id,
                 department_id=dept_id,
                 shift_id=shift_id,
                 machine_id=r["machine_id"],
-                employee_id=r["employee_id"],
+                employee_id=emp_id,
                 actual=r["actual"],
                 waste=r["waste"],
                 run_hr=r["run_hr"],
@@ -148,7 +128,7 @@ def daily_entry_page():
                 remarks=r["remarks"],
                 target=r["target"]
             )
-            session.add(new)
+            session.add(entry)
 
         session.commit()
-        st.success("Data Saved Successfully!")
+        st.success("Saved successfully")
