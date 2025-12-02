@@ -35,7 +35,13 @@ def daily_entry_page():
 
     shifts = session.query(Shift).order_by(Shift.id).all()
     shift_map = {s.id: s.shift_name for s in shifts}
-    shift_id = st.selectbox("Shift", shift_map.keys(), format_func=lambda x: shift_map[x])
+
+    shift_id = st.selectbox(
+        "Shift",
+        options=list(shift_map.keys()),
+        format_func=lambda x: shift_map[x]
+    )
+
 
     # ------------------ LOAD EXISTING ------------------
     saved = session.query(DailyProduction).filter(
