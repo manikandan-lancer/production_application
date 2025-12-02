@@ -147,7 +147,7 @@ def daily_entry_page():
         for _, r in edited_df.iterrows():
 
             emp = session.query(Employee).filter(
-                Employee.employee_no == str(r["employee_id"])
+                Employee.employee_no == str(r.get("employee_id", ""))
             ).first()
 
             emp_id = emp.id if emp else None
@@ -159,14 +159,14 @@ def daily_entry_page():
                 shift_id=shift_id,
                 machine_id=r["machine_id"],
                 employee_id=emp_id,
-                actual=r["actual"],
-                waste=r["waste"],
-                run_hr=r["run_hr"],
-                prod=r["prod"],
-                ts=r.get("ts", ""),      # SAFE ACCESS
-                count=r.get("count", ""),  # SAFE ACCESS
+                actual=r.get("actual", 0),
+                waste=r.get("waste", 0),
+                run_hr=r.get("run_hr", 0),
+                prod=r.get("prod", 0),
+                ts=r.get("ts", ""),           # FIXED Safe Access
+                count=r.get("count", ""),     # FIXED Safe Access
                 remarks=r.get("remarks", ""),
-                target=r["target"]
+                target=r.get("target", 0)
             )
 
             session.add(entry)
