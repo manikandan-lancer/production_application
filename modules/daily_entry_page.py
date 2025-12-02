@@ -33,7 +33,7 @@ def daily_entry_page():
     dept_map = {d.id: d.department_name for d in depts}
     dept_id = st.selectbox("Department", dept_map.keys(), format_func=lambda x: dept_map[x])
 
-    shifts = session.query(Shift).all()
+    shifts = session.query(Shift).order_by(Shift.id).all()
     shift_map = {s.id: s.shift_name for s in shifts}
     shift_id = st.selectbox("Shift", shift_map.keys(), format_func=lambda x: shift_map[x])
 
