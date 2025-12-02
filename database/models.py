@@ -1,59 +1,40 @@
-from sqlalchemy import Column, Integer, String, Float, Date, Time, ForeignKey
-from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy import Column, Integer, String, Date, Float, ForeignKey
+from sqlalchemy.orm import relationship
+from database.connection import Base
 
-Base = declarative_base()
 
-# ============================
-# MILL MASTER
-# ============================
 class Mill(Base):
     __tablename__ = "mill_master"
 
-    id = Column(Integer, primary_key=True)
-    mill_name = Column(String)
-
-    employees = relationship("Employee", back_populates="mill")
-    machines = relationship("Machine", back_populates="mill")
+    id = Column(Integer, primary_key=True, index=True)
+    mill_name = Column(String, nullable=False)
 
 
-# ============================
-# DEPARTMENT MASTER
-# ============================
 class Department(Base):
     __tablename__ = "department_master"
 
-    id = Column(Integer, primary_key=True)
-    department_name = Column(String)
-
-    employees = relationship("Employee", back_populates="department")
-    machines = relationship("Machine", back_populates="department")
+    id = Column(Integer, primary_key=True, index=True)
+    department_name = Column(String, nullable=False)
 
 
-# ============================
-# EMPLOYEE MASTER
-# ============================
 class Employee(Base):
     __tablename__ = "employee_master"
 
-    id = Column(Integer, primary_key=True)
-    emp_name = Column(String)
+    id = Column(Integer, primary_key=True, index=True)
+    employee_no = Column(String, nullable=False)
+    employee_name = Column(String, nullable=False)
 
     mill_id = Column(Integer, ForeignKey("mill_master.id"))
     department_id = Column(Integer, ForeignKey("department_master.id"))
 
-    mill = relationship("Mill", back_populates="employees")
-    department = relationship("Department", back_populates="employees")
-
-    production_rows = relationship("DailyProduction", back_populates="employee")
+    mill = relationship("Mill")
+    department = relationship("Department")
 
 
-# ============================
-# MACHINE MASTER
-# ============================
 class Machine(Base):
     __tablename__ = "machine_master"
 
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, index=True)
     mill_id = Column(Integer, ForeignKey("mill_master.id"))
     department_id = Column(Integer, ForeignKey("department_master.id"))
 
@@ -63,40 +44,29 @@ class Machine(Base):
     tpi = Column(Float)
     std_hank = Column(Float)
     cycle_time = Column(Float)
-    target = Column(Float)
+    target = Column(Integer)
 
-    mill = relationship("Mill", back_populates="machines")
-    department = relationship("Department", back_populates="machines")
-
-    production_rows = relationship("DailyProduction", back_populates="machine")
+    mill = relationship("Mill")
+    department = relationship("Department")
 
 
-# ============================
-# SHIFT MASTER
-# ============================
 class Shift(Base):
     __tablename__ = "shift_master"
 
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, index=True)
     shift_name = Column(String)
-    start_time = Column(Time)
-    end_time = Column(Time)
-
-    production_rows = relationship("DailyProduction", back_populates="shift")
+    start_time = Column(String)
+    end_time = Column(String)
 
 
-# ============================
-# DAILY PRODUCTION
-# ============================
 class DailyProduction(Base):
     __tablename__ = "daily_production"
 
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, index=True)
 
     date = Column(Date)
-    mill_id = Column(Integer)
-    department_id = Column(Integer)
-
+    mill_id = Column(Integer, ForeignKey("mill_master.id"))
+    department_id = Column(Integer, ForeignKey("department_master.id"))
     shift_id = Column(Integer, ForeignKey("shift_master.id"))
     machine_id = Column(Integer, ForeignKey("machine_master.id"))
     employee_id = Column(Integer, ForeignKey("employee_master.id"))
@@ -105,20 +75,19 @@ class DailyProduction(Base):
     waste = Column(Float)
     run_hr = Column(Float)
     prod = Column(Float)
-
+    target = Column(Integer)
     ts = Column(String)
     count = Column(String)
     remarks = Column(String)
 
-    target = Column(Float)
+    # NEW (You confirmed these columns exist)
+    scrap = Column(Float, nullable=True)
+    downtime = Column(Float, nullable=True)
+    efficiency = Column(Float, nullable=True)
+    oee = Column(Float, nullable=True)
 
-    # NEW METRICS
-    efficiency = Column(Float)
-    oee = Column(Float)
-    scrap = Column(Float)
-    downtime = Column(Float)
-
-    # RELATIONSHIPS
-    shift = relationship("Shift", back_populates="production_rows")
-    machine = relationship("Machine", back_populates="production_rows")
-    employee = relationship("Employee", back_populates="production_rows")
+    mill = relationship("Mill")
+    department = relationship("Department")
+    shift = relationship("Shift")
+    machine = relationship("Machine")
+    employee = relationship("Employee")
