@@ -1,8 +1,19 @@
 from sqlalchemy import create_engine
-from config.settings import *
+from sqlalchemy.orm import declarative_base, sessionmaker
+import os
 
-DATABASE_URL = (
-    f"postgresql+psycopg2://{DB_USER}:{DB_PASS}@{DB_HOST}/{DB_NAME}?sslmode=require"
-)
+# ----------------------------
+# Database URL from environment
+# ----------------------------
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-engine = create_engine(DATABASE_URL, echo=False)
+# ----------------------------
+# SQLAlchemy Setup
+# ----------------------------
+engine = create_engine(DATABASE_URL)
+
+# Base class for models
+Base = declarative_base()
+
+# DB Session
+SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
