@@ -1,19 +1,32 @@
+# database/connection.py
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 import os
 
-# ----------------------------
-# Database URL from environment
-# ----------------------------
+# -------------------------------
+# Load database URL (Render / Neon)
+# -------------------------------
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# ----------------------------
-# SQLAlchemy Setup
-# ----------------------------
+if not DATABASE_URL:
+    raise Exception("DATABASE_URL not set in environment variables")
+
+# -------------------------------
+# SQLAlchemy Engine
+# -------------------------------
 engine = create_engine(DATABASE_URL)
 
-# Base class for models
+# -------------------------------
+# Base for model inheritance
+# -------------------------------
 Base = declarative_base()
 
-# DB Session
-SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+# -------------------------------
+# Session factory
+# -------------------------------
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=engine
+)
