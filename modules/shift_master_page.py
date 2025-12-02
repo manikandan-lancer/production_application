@@ -5,13 +5,10 @@ from database.models import Shift
 
 SessionLocal = sessionmaker(bind=engine)
 
-
 def shift_master_page():
-    st.header("Shift Master")
+    st.title("Shift Master")
 
     session = SessionLocal()
-
-    st.subheader("Add New Shift")
 
     shift_name = st.text_input("Shift Name (A / B / C)")
     start_time = st.time_input("Start Time")

@@ -14,7 +14,7 @@ def employee_master_page():
     mill_map = {m.id: m.mill_name for m in mills}
 
     depts = session.query(Department).all()
-    dept_map = {d.id: d.dept_name for d in depts}
+    dept_map = {d.id: d.department_name for d in depts}
 
     emp_no = st.text_input("Employee No (T.No)")
     emp_name = st.text_input("Employee Name")
@@ -40,4 +40,4 @@ def employee_master_page():
     employees = session.query(Employee).all()
 
     for e in employees:
-        st.write(f"{e.employee_no} - {e.employee_name} | Mill: {e.mill_id} | Dept: {e.department_id}")
+        st.write(f"{e.employee_no} — {e.employee_name} | Mill: {e.mill_id} | Dept: {e.department_id}")

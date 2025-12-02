@@ -6,8 +6,13 @@ from database.models import (
     Machine, Shift, DailyProduction, Employee,
     Mill, Department
 )
+from formulas import (
+    calc_efficiency, calc_oee,
+    calc_availability, calc_performance, calc_quality
+)
 
 SessionLocal = sessionmaker(bind=engine)
+
 
 def daily_entry_page():
     st.title("Daily Production Entry")
@@ -22,7 +27,7 @@ def daily_entry_page():
     mill_id = st.selectbox("Mill", mill_map.keys(), format_func=lambda x: mill_map[x])
 
     depts = session.query(Department).all()
-    dept_map = {d.id: d.dept_name for d in depts}
+    dept_map = {d.id: d.department_name for d in depts}
     dept_id = st.selectbox("Department", dept_map.keys(), format_func=lambda x: dept_map[x])
 
     shifts = session.query(Shift).all()
@@ -54,8 +59,8 @@ def daily_entry_page():
                 "waste": s.waste,
                 "run_hr": s.run_hr,
                 "prod": s.prod,
-                "ts": s.ts,
-                "count": s.count,
+                "efficiency": s.efficiency,
+                "oee": s.oee,
                 "remarks": s.remarks,
                 "target": s.target
             })
@@ -80,10 +85,13 @@ def daily_entry_page():
                 "waste": 0,
                 "run_hr": 0,
                 "prod": 0,
-                "ts": "",
-                "count": "",
+                "efficiency": 0,
+                "oee": 0,
                 "remarks": "",
-                "target": m.target
+                "target": m.target,
+                "speed": m.speed,
+                "tpi": m.tpi,
+                "std_hank": m.std_hank
             }
             for m in machines
         ])
@@ -98,7 +106,18 @@ def daily_entry_page():
 
     edited_df = st.data_editor(df, use_container_width=True)
 
-    # Save
+    # -------------------- AUTO CALCULATIONS --------------------
+    for idx, r in edited_df.iterrows():
+        availability = calc_availability(r["run_hr"])
+        performance = calc_performance(r["actual"], r.get("speed", 0), r.get("tpi", 0), r.get("std_hank", 0))
+        quality = calc_quality(r["actual"], r["waste"])
+        efficiency = calc_efficiency(r["actual"], r["target"])
+        oee = calc_oee(availability, performance, quality)
+
+        edited_df.at[idx, "efficiency"] = efficiency
+        edited_df.at[idx, "oee"] = oee
+
+    # -------------------- SAVE --------------------
     if st.button("Save Data"):
         session.query(DailyProduction).filter(
             DailyProduction.date == date,
@@ -123,8 +142,8 @@ def daily_entry_page():
                 waste=r["waste"],
                 run_hr=r["run_hr"],
                 prod=r["prod"],
-                ts=r["ts"],
-                count=r["count"],
+                efficiency=r["efficiency"],
+                oee=r["oee"],
                 remarks=r["remarks"],
                 target=r["target"]
             )

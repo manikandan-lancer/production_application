@@ -14,7 +14,7 @@ def machine_master_page():
     mill_map = {m.id: m.mill_name for m in mills}
 
     depts = session.query(Department).all()
-    dept_map = {d.id: d.dept_name for d in depts}
+    dept_map = {d.id: d.department_name for d in depts}
 
     mill_id = st.selectbox("Select Mill", mill_map.keys(), format_func=lambda x: mill_map[x])
     dept_id = st.selectbox("Select Department", dept_map.keys(), format_func=lambda x: dept_map[x])

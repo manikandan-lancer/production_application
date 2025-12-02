@@ -24,7 +24,7 @@ def view_data_page():
         rows.append({
             "Date": d.date,
             "Mill": mill.mill_name if mill else "",
-            "Department": dept.dept_name if dept else "",
+            "Department": dept.department_name if dept else "",
             "Shift": shift.shift_name if shift else "",
             "Machine": machine.frame_number if machine else "",
             "Employee": emp.employee_name if emp else "",
