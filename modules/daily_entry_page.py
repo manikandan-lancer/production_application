@@ -40,10 +40,13 @@ def daily_entry_page():
     # ------------------ LOAD EXISTING ------------------
     saved = session.query(DailyProduction).filter(
         DailyProduction.date == date,
-        DailyProduction.mill_id == mill_id,
-        DailyProduction.department_id == dept_id,
-        DailyProduction.shift_id == shift_id
+        DailyProduction.mill_id == int(mill_id),
+        DailyProduction.department_id == int(dept_id),
+        DailyProduction.shift_id == int(shift_id)
     ).all()
+
+    st.write("DEBUG Saved Count:", len(saved))
+
 
     if saved:
         st.success("Loaded saved records.")
