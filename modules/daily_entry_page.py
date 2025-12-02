@@ -7,8 +7,10 @@ from database.models import (
     Mill, Department
 )
 from modules.formulas import (
-    calc_efficiency, calc_oee,
-    calc_availability, calc_performance,
+    calc_efficiency,
+    calc_oee,
+    calc_availability,
+    calc_performance,
     calc_quality
 )
 
@@ -35,7 +37,7 @@ def daily_entry_page():
     shift_map = {s.id: s.shift_name for s in shifts}
     shift_id = st.selectbox("Shift", shift_map.keys(), format_func=lambda x: shift_map[x])
 
-    # ------------------ LOAD SAVED DATA ------------------
+    # ------------------ LOAD EXISTING ------------------
     saved = session.query(DailyProduction).filter(
         DailyProduction.date == date,
         DailyProduction.mill_id == mill_id,
@@ -60,15 +62,12 @@ def daily_entry_page():
                 "waste": s.waste,
                 "run_hr": s.run_hr,
                 "prod": s.prod,
-                "ts": s.ts,
-                "count": s.count,
+                "ts": s.ts or "",
+                "count": s.count or "",
+                "efficiency": s.efficiency or 0,
+                "oee": s.oee or 0,
                 "remarks": s.remarks,
-                "efficiency": s.efficiency,
-                "oee": s.oee,
                 "target": s.target,
-                "speed": machine.speed if machine else 0,
-                "tpi": machine.tpi if machine else 0,
-                "std_hank": machine.std_hank if machine else 0
             })
 
         df = pd.DataFrame(rows)
@@ -93,9 +92,9 @@ def daily_entry_page():
                 "prod": 0,
                 "ts": "",
                 "count": "",
-                "remarks": "",
                 "efficiency": 0,
                 "oee": 0,
+                "remarks": "",
                 "target": m.target,
                 "speed": m.speed,
                 "tpi": m.tpi,
@@ -104,36 +103,33 @@ def daily_entry_page():
             for m in machines
         ])
 
-    # ----------------- AUTO EMPLOYEE NAME FILL -----------------
+    # ------------------ AUTO-FILL EMPLOYEE NAME ------------------
     for idx, row in df.iterrows():
-        emp_no = str(row["employee_id"]).strip()
+        emp_no = str(row.get("employee_id", "")).strip()
         if emp_no:
             emp = session.query(Employee).filter(Employee.employee_no == emp_no).first()
             if emp:
                 df.at[idx, "employee_name"] = emp.employee_name
 
-    # ----------------- EDITOR -----------------
     edited_df = st.data_editor(df, use_container_width=True)
 
-    # ----------------- AUTO CALCULATIONS -----------------
+    # -------------------- AUTO CALCULATIONS --------------------
     for idx, r in edited_df.iterrows():
-
-        availability = calc_availability(r["run_hr"])
+        availability = calc_availability(r.get("run_hr", 0))
         performance = calc_performance(
-            r["actual"],
+            r.get("actual", 0),
             r.get("speed", 0),
             r.get("tpi", 0),
             r.get("std_hank", 0)
         )
-        quality = calc_quality(r["actual"], r["waste"])
-
-        efficiency = calc_efficiency(r["actual"], r["target"])
+        quality = calc_quality(r.get("actual", 0), r.get("waste", 0))
+        efficiency = calc_efficiency(r.get("actual", 0), r.get("target", 0))
         oee = calc_oee(availability, performance, quality)
 
         edited_df.at[idx, "efficiency"] = efficiency
         edited_df.at[idx, "oee"] = oee
 
-    # ----------------- SAVE -----------------
+    # -------------------- SAVE --------------------
     if st.button("Save Data"):
 
         session.query(DailyProduction).filter(
@@ -149,7 +145,6 @@ def daily_entry_page():
             emp = session.query(Employee).filter(
                 Employee.employee_no == str(r.get("employee_id", ""))
             ).first()
-
             emp_id = emp.id if emp else None
 
             entry = DailyProduction(
@@ -163,12 +158,11 @@ def daily_entry_page():
                 waste=r.get("waste", 0),
                 run_hr=r.get("run_hr", 0),
                 prod=r.get("prod", 0),
-                ts=r.get("ts", ""),           # FIXED Safe Access
-                count=r.get("count", ""),     # FIXED Safe Access
+                ts=r.get("ts", ""),       # <---- FIXED
+                count=r.get("count", ""), # <---- FIXED
                 remarks=r.get("remarks", ""),
                 target=r.get("target", 0)
             )
-
             session.add(entry)
 
         session.commit()
