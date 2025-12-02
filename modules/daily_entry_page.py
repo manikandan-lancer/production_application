@@ -3,8 +3,7 @@ import pandas as pd
 from sqlalchemy.orm import sessionmaker
 from database.connection import engine
 from database.models import (
-    Machine, Shift, DailyProduction, Employee,
-    Mill, Department
+    Machine, Shift, DailyProduction, Employee, Mill, Department
 )
 from modules.formulas import (
     calc_efficiency,
@@ -25,11 +24,11 @@ def daily_entry_page():
     # ------------------ FILTERS ------------------
     date = st.date_input("Select Date")
 
-    mills = session.query(Mill).all()
+    mills = session.query(Mill).order_by(Mill.id).all()
     mill_map = {m.id: m.mill_name for m in mills}
     mill_id = st.selectbox("Mill", mill_map.keys(), format_func=lambda x: mill_map[x])
 
-    depts = session.query(Department).all()
+    depts = session.query(Department).order_by(Department.id).all()
     dept_map = {d.id: d.department_name for d in depts}
     dept_id = st.selectbox("Department", dept_map.keys(), format_func=lambda x: dept_map[x])
 
@@ -37,65 +36,19 @@ def daily_entry_page():
     shift_map = {s.id: s.shift_name for s in shifts}
     shift_id = st.selectbox("Shift", shift_map.keys(), format_func=lambda x: shift_map[x])
 
-    st.write("---")
-
     # ------------------ LOAD EXISTING ------------------
-    saved_rows = session.query(DailyProduction).filter(
+    saved = session.query(DailyProduction).filter(
         DailyProduction.date == date,
         DailyProduction.mill_id == mill_id,
         DailyProduction.department_id == dept_id,
         DailyProduction.shift_id == shift_id
     ).all()
 
-    if not saved_rows:
-        st.info("No saved data found for the selected Date / Mill / Department / Shift.")
+    if saved:
+        st.success("Loaded saved records.")
 
-        # Button to generate new data
-        if st.button("Generate New Data"):
-            machines = session.query(Machine).filter(
-                Machine.mill_id == mill_id,
-                Machine.department_id == dept_id
-            ).all()
-
-            if not machines:
-                st.warning("No machines available for this mill & department.")
-                return
-
-            df = pd.DataFrame([
-                {
-                    "machine_id": m.id,
-                    "frame_number": m.frame_number,
-                    "employee_id": "",
-                    "employee_name": "",
-                    "actual": 0,
-                    "waste": 0,
-                    "run_hr": 0,
-                    "prod": 0,
-                    "ts": "",
-                    "count": 0,
-                    "efficiency": 0,
-                    "oee": 0,
-                    "remarks": "",
-                    "target": m.target,
-                    "speed": m.speed,
-                    "tpi": m.tpi,
-                    "std_hank": m.std_hank
-                }
-                for m in machines
-            ])
-
-            st.session_state["production_df"] = df
-
-        # Show table only if generated
-        if "production_df" not in st.session_state:
-            return
-
-        df = st.session_state["production_df"]
-
-    else:
-        # ---------------- SHOW SAVED DATA ----------------
         rows = []
-        for s in saved_rows:
+        for s in saved:
             machine = session.query(Machine).filter(Machine.id == s.machine_id).first()
             emp = session.query(Employee).filter(Employee.id == s.employee_id).first()
 
@@ -110,15 +63,53 @@ def daily_entry_page():
                 "prod": s.prod,
                 "ts": s.ts,
                 "count": s.count,
+                "remarks": s.remarks,
                 "efficiency": s.efficiency,
                 "oee": s.oee,
-                "remarks": s.remarks,
-                "target": s.target
+                "target": s.target,
+                "speed": machine.speed if machine else 0,
+                "tpi": machine.tpi if machine else 0,
+                "std_hank": machine.std_hank if machine else 0
             })
 
         df = pd.DataFrame(rows)
 
-    # ------------------ AUTO FILL EMPLOYEES ------------------
+    else:
+        st.warning("No saved data found. Generating new rows...")
+
+        machines = session.query(Machine).filter(
+            Machine.mill_id == mill_id,
+            Machine.department_id == dept_id
+        ).order_by(Machine.id).all()
+
+        if not machines:
+            st.error("No machines found for this Mill + Department.")
+            return
+
+        df = pd.DataFrame([
+            {
+                "machine_id": m.id,
+                "frame_number": m.frame_number,
+                "employee_id": "",
+                "employee_name": "",
+                "actual": 0,
+                "waste": 0,
+                "run_hr": 0,
+                "prod": 0,
+                "ts": "",
+                "count": "",
+                "remarks": "",
+                "efficiency": 0,
+                "oee": 0,
+                "target": m.target,
+                "speed": m.speed,
+                "tpi": m.tpi,
+                "std_hank": m.std_hank
+            }
+            for m in machines
+        ])
+
+    # ------------------ AUTO-FILL EMPLOYEE NAME ------------------
     for idx, row in df.iterrows():
         emp_no = str(row["employee_id"]).strip()
         if emp_no:
@@ -126,12 +117,13 @@ def daily_entry_page():
             if emp:
                 df.at[idx, "employee_name"] = emp.employee_name
 
+    # ------------------ SHOW EDITOR ------------------
     edited_df = st.data_editor(df, use_container_width=True)
 
-    # -------------------- AUTO CALCULATIONS --------------------
+    # ------------------ AUTO CALCULATIONS ------------------
     for idx, r in edited_df.iterrows():
         availability = calc_availability(r["run_hr"])
-        performance = calc_performance(r["actual"], r.get("speed", 0), r.get("tpi", 0), r.get("std_hank", 0))
+        performance = calc_performance(r["actual"], r["speed"], r["tpi"], r["std_hank"])
         quality = calc_quality(r["actual"], r["waste"])
         efficiency = calc_efficiency(r["actual"], r["target"])
         oee = calc_oee(availability, performance, quality)
@@ -139,9 +131,10 @@ def daily_entry_page():
         edited_df.at[idx, "efficiency"] = efficiency
         edited_df.at[idx, "oee"] = oee
 
-    # -------------------- SAVE --------------------
+    # ------------------ SAVE TO DATABASE ------------------
     if st.button("Save Data"):
-        # Delete previous entries for this combination
+
+        # Delete old records for this date+mill+dept+shift
         session.query(DailyProduction).filter(
             DailyProduction.date == date,
             DailyProduction.mill_id == mill_id,
@@ -150,12 +143,15 @@ def daily_entry_page():
         ).delete()
         session.commit()
 
-        # Insert new entries
+        # Insert updated records
         for _, r in edited_df.iterrows():
-            emp = session.query(Employee).filter(Employee.employee_no == str(r["employee_id"])).first()
+
+            emp = session.query(Employee).filter(
+                Employee.employee_no == str(r["employee_id"])
+            ).first()
             emp_id = emp.id if emp else None
 
-            entry = DailyProduction(
+            new_entry = DailyProduction(
                 date=date,
                 mill_id=mill_id,
                 department_id=dept_id,
@@ -173,10 +169,11 @@ def daily_entry_page():
                 efficiency=r["efficiency"],
                 oee=r["oee"]
             )
-            session.add(entry)
+
+            session.add(new_entry)
 
         session.commit()
-        st.success("Saved successfully!")
+        st.success("Data Saved Successfully!")
 
         # Clear session df to avoid reuse
         if "production_df" in st.session_state:
