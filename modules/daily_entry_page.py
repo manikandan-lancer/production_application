@@ -145,8 +145,8 @@ def daily_entry_page():
                 waste=r["waste"],
                 run_hr=r["run_hr"],
                 prod=r["prod"],
-                efficiency=r["efficiency"],
-                oee=r["oee"],
+                ts=r["ts"],
+                count=r["count"],
                 remarks=r["remarks"],
                 target=r["target"]
             )
