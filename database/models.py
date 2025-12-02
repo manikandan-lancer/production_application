@@ -92,25 +92,28 @@ class Shift(Base):
 class DailyProduction(Base):
     __tablename__ = "daily_production"
 
-    id = Column(Integer, primary_key=True)
-
+    id = Column(Integer, primary_key=True, index=True)
     date = Column(Date)
     mill_id = Column(Integer)
     department_id = Column(Integer)
+    shift_id = Column(Integer)
 
-    shift_id = Column(Integer, ForeignKey("shift_master.id"))
-    machine_id = Column(Integer, ForeignKey("machine_master.id"))
-    employee_id = Column(Integer, ForeignKey("employee_master.id"))
+    machine_id = Column(Integer)
+    employee_id = Column(Integer)
 
     actual = Column(Float)
     waste = Column(Float)
     run_hr = Column(Float)
     prod = Column(Float)
+
     ts = Column(String)
     count = Column(String)
     remarks = Column(String)
+
     target = Column(Float)
 
-    shift = relationship("Shift", back_populates="production")
-    machine = relationship("Machine", back_populates="production")
-    employee = relationship("Employee", back_populates="production")
+    # ---- Missing columns added ----
+    efficiency = Column(Float)
+    oee = Column(Float)
+    scrap = Column(Float)
+    downtime = Column(Float)
