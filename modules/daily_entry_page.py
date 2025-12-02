@@ -6,9 +6,12 @@ from database.models import (
     Machine, Shift, DailyProduction, Employee,
     Mill, Department
 )
-from formulas import (
-    calc_efficiency, calc_oee,
-    calc_availability, calc_performance, calc_quality
+from modules.formulas import (
+    calc_efficiency,
+    calc_oee,
+    calc_availability,
+    calc_performance,
+    calc_quality
 )
 
 SessionLocal = sessionmaker(bind=engine)
