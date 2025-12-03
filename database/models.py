@@ -71,6 +71,7 @@ class DailyProduction(Base):
     machine_id = Column(Integer, ForeignKey("machine_master.id"))
     employee_id = Column(Integer, ForeignKey("employee_master.id"))
 
+    # Inputs from UI
     actual = Column(Float)
     waste = Column(Float)
     run_hr = Column(Float)
@@ -80,12 +81,20 @@ class DailyProduction(Base):
     count = Column(String)
     remarks = Column(String)
 
-    # NEW (You confirmed these columns exist)
     scrap = Column(Float, nullable=True)
     downtime = Column(Float, nullable=True)
+
+    # 🔥 THESE WERE MISSING (UI sends them)
     efficiency = Column(Float, nullable=True)
     oee = Column(Float, nullable=True)
+    availability = Column(Float, nullable=True)
+    quality = Column(Float, nullable=True)
+    performance = Column(Float, nullable=True)
 
+    # 🔥 Also missing (UI sends employee_name)
+    employee_name = Column(String, nullable=True)
+
+    # Relationships
     mill = relationship("Mill")
     department = relationship("Department")
     shift = relationship("Shift")
