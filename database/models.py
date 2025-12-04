@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, Date, Float, ForeignKey
 from sqlalchemy.orm import relationship
-from database.connection import Base
+from sqlalchemy.ext.hybrid import hybrid_property
+from database.connection import Base, SessionLocal
 
 
 class Mill(Base):
@@ -71,7 +72,7 @@ class DailyProduction(Base):
     machine_id = Column(Integer, ForeignKey("machine_master.id"))
     employee_id = Column(Integer, ForeignKey("employee_master.id"))
 
-    # Inputs from UI
+    # UI INPUTS
     actual = Column(Float)
     waste = Column(Float)
     run_hr = Column(Float)
@@ -81,18 +82,16 @@ class DailyProduction(Base):
     count = Column(String)
     remarks = Column(String)
 
+    # EXTRA FIELDS
     scrap = Column(Float, nullable=True)
     downtime = Column(Float, nullable=True)
 
-    # 🔥 THESE WERE MISSING (UI sends them)
+    # FORMULA FIELDS
     efficiency = Column(Float, nullable=True)
     oee = Column(Float, nullable=True)
     availability = Column(Float, nullable=True)
     quality = Column(Float, nullable=True)
     performance = Column(Float, nullable=True)
-
-    # 🔥 Also missing (UI sends employee_name)
-    employee_name = Column(String, nullable=True)
 
     # Relationships
     mill = relationship("Mill")
@@ -100,3 +99,22 @@ class DailyProduction(Base):
     shift = relationship("Shift")
     machine = relationship("Machine")
     employee = relationship("Employee")
+
+    # -----------------------------------------
+    # 🔥 Hybrid properties for employee fields
+    # -----------------------------------------
+
+    @hybrid_property
+    def employee_no(self):
+        return self.employee.employee_no if self.employee else ""
+
+    @employee_no.setter
+    def employee_no(self, value):
+        session = SessionLocal()
+        emp = session.query(Employee).filter(Employee.employee_no == str(value)).first()
+        self.employee_id = emp.id if emp else None
+
+    @hybrid_property
+    def employee_name_display(self):
+        """This is used only for showing in UI"""
+        return self.employee.employee_name if self.employee else ""
