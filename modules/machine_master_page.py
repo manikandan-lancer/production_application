@@ -5,39 +5,51 @@ from database.models import Machine, Mill, CountMaster
 
 SessionLocal = sessionmaker(bind=engine)
 
-
 def machine_master_page():
-    st.header("🛠 Machine Master")
+    st.title("Machine Master")
 
     session = SessionLocal()
 
     mills = session.query(Mill).all()
     mill_map = {m.id: m.mill_name for m in mills}
 
+    counts = session.query(CountMaster).all()
+    count_map = {c.id: c.count_name for c in counts}
+
+    st.subheader("Add Machine")
+
     frame_no = st.text_input("Frame No")
-    mill_id = st.selectbox("Mill", mill_map.keys(), format_func=lambda x: mill_map[x])
     spindles = st.number_input("Spindles", min_value=0)
-    allocated_count = st.number_input("Allocated Count", min_value=0)
-    speed = st.number_input("Speed", min_value=0.0)
-    hank = st.number_input("Hank", min_value=0.0)
-    tpi = st.number_input("TPI", min_value=0.0)
+    speed = st.number_input("Speed")
+    hank = st.number_input("Hank")
+    tpi = st.number_input("TPI")
+
+    mill_id = st.selectbox("Mill", mill_map.keys(), format_func=lambda x: mill_map[x])
+    count_id = st.selectbox("Allocated Count", count_map.keys(), format_func=lambda x: count_map[x])
 
     if st.button("Save Machine"):
-        m = Machine(
-            frame_no=frame_no,
-            mill_id=mill_id,
-            spindles=spindles,
-            allocated_count=allocated_count,
-            speed=speed,
-            hank=hank,
-            tpi=tpi
-        )
-        session.add(m)
-        session.commit()
-        st.success("Machine Saved Successfully!")
+        if not frame_no:
+            st.error("Frame number is required.")
+        else:
+            machine = Machine(
+                frame_no=frame_no,
+                mill_id=mill_id,                 # ✔ FIXED
+                allocated_count_id=count_id,     # ✔ FIXED
+                spindles=spindles,
+                speed=speed,
+                hank=hank,
+                tpi=tpi
+            )
+            session.add(machine)
+            session.commit()
+            st.success("Machine added successfully!")
 
     st.subheader("Existing Machines")
+
     machines = session.query(Machine).all()
 
     for m in machines:
-        st.write(f"{m.id} — Frame {m.frame_no} | Mill {m.mill_id}")
+        st.write(
+            f"Frame {m.frame_no} | Mill: {mill_map.get(m.mill_id)} | "
+            f"Count: {count_map.get(m.allocated_count_id)} | Spindles: {m.spindles}"
+        )
