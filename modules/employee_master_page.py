@@ -10,21 +10,25 @@ def employee_master_page():
 
     session = SessionLocal()
 
-    # Mill list
+    # Load mills
     mills = session.query(Mill).all()
     mill_map = {m.id: m.mill_name for m in mills}
 
-    st.subheader("Add Employee")
+    st.subheader("Add New Employee")
 
     emp_no = st.text_input("Employee No (T.No)")
     emp_name = st.text_input("Employee Name")
     designation = st.text_input("Designation (Optional)")
 
-    mill_id = st.selectbox("Select Mill", mill_map.keys(), format_func=lambda x: mill_map[x])
+    mill_id = st.selectbox(
+        "Select Mill",
+        mill_map.keys(),
+        format_func=lambda x: mill_map[x]
+    )
 
     if st.button("Save Employee"):
-        if not emp_no.strip() or not emp_name.strip():
-            st.error("Employee number and name cannot be empty.")
+        if emp_no.strip() == "" or emp_name.strip() == "":
+            st.error("Employee No and Name are required.")
         else:
             emp = Employee(
                 employee_no=emp_no,
@@ -37,6 +41,7 @@ def employee_master_page():
             st.success("Employee added successfully!")
 
     st.subheader("Existing Employees")
+
     employees = session.query(Employee).all()
 
     for e in employees:
