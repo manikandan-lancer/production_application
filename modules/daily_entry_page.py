@@ -31,25 +31,28 @@ def daily_entry_page():
     # SELECT SHIFT
     # ---------------------------
     shifts = session.query(Shift).order_by(Shift.id).all()
-
     if not shifts:
-        st.error("⚠ No shifts found in database. Please add 3 shifts in Shift Master.")
+        st.error("⚠ No shifts found. Please add 3 shifts in Shift Master.")
         return
 
     shift_map = {s.id: s.shift_name for s in shifts}
-    shift_id = st.selectbox("Shift", shift_map.keys(), format_func=lambda x: shift_map[x])
+
+    shift_id = st.selectbox(
+        "Shift",
+        list(shift_map.keys()),
+        format_func=lambda x: shift_map[x]
+    )
 
     # ---------------------------
     # LOAD MACHINES
     # ---------------------------
     machines = session.query(Machine).all()
-
     if not machines:
-        st.warning("⚠ No machines found. Please add machines first.")
+        st.warning("⚠ No machines available. Please add machines first.")
         return
 
     # ---------------------------
-    # CHECK IF SAVED RECORDS EXIST
+    # CHECK EXISTING RECORDS
     # ---------------------------
     saved = session.query(DailyProduction).filter(
         DailyProduction.date == date,
@@ -83,7 +86,7 @@ def daily_entry_page():
         df = pd.DataFrame(rows)
 
     else:
-        st.warning("No saved data found — generating new entry template.")
+        st.warning("No saved data — generating blank template.")
 
         df = pd.DataFrame([
             {
@@ -107,29 +110,25 @@ def daily_entry_page():
     # AUTO-FILL EMPLOYEE NAME
     # ---------------------------
     for idx, row in df.iterrows():
-        emp_no = str(row["employee_no"]).strip()
-        if emp_no:
-            emp = session.query(Employee).filter(Employee.employee_no == emp_no).first()
+        if row["employee_no"]:
+            emp = session.query(Employee).filter(
+                Employee.employee_no == str(row["employee_no"])
+            ).first()
             if emp:
                 df.at[idx, "employee_name"] = emp.employee_name
 
     # ---------------------------
-    # EDITOR UI
+    # DATA EDITOR
     # ---------------------------
     edited_df = st.data_editor(df, use_container_width=True)
 
     # ---------------------------
-    # CALCULATE FORMULAS
+    # FORMULA CALCULATIONS
     # ---------------------------
     for idx, r in edited_df.iterrows():
 
         availability = calc_availability(r["run_hours"])
-        performance = calc_performance(
-            actual=r["actual"],
-            speed=None,
-            tpi=None,
-            hank=None
-        )
+        performance = calc_performance(r["actual"])   # FIXED
         quality = calc_quality(r["actual"], r["waste"])
         efficiency = calc_efficiency(r["actual"], r["target"])
         oee = calc_oee(availability, performance, quality)
@@ -141,27 +140,30 @@ def daily_entry_page():
     # SAVE DATA
     # ---------------------------
     if st.button("💾 Save Data"):
-        # Delete old entries for same date + shift
+
+        # Delete old entries
         session.query(DailyProduction).filter(
             DailyProduction.date == date,
             DailyProduction.shift_id == shift_id
         ).delete()
         session.commit()
 
-        # Insert new rows
+        # Insert fresh entries
         for _, r in edited_df.iterrows():
 
-            # Get employee
+            # Employee
             emp_obj = None
             if r["employee_no"]:
                 emp_obj = session.query(Employee).filter(
                     Employee.employee_no == str(r["employee_no"])
                 ).first()
 
-            # Get count
-            count_obj = session.query(CountMaster).filter(
-                CountMaster.count_name == str(r["count_name"])
-            ).first()
+            # Count
+            count_obj = None
+            if r["count_name"]:
+                count_obj = session.query(CountMaster).filter(
+                    CountMaster.count_name == str(r["count_name"])
+                ).first()
 
             entry = DailyProduction(
                 date=date,
@@ -177,6 +179,7 @@ def daily_entry_page():
                 oee=r["oee"],
                 remarks=r["remarks"]
             )
+
             session.add(entry)
 
         session.commit()
