@@ -112,3 +112,12 @@ class DailyProduction(Base):
     oee = Column(Float)
 
     remarks = Column(String)
+
+# -----------------------
+# MILL MODULE
+# -----------------------
+class Mill(Base):
+    __tablename__ = "mill_master"
+
+    id = Column(Integer, primary_key=True, index=True)
+    mill_name = Column(String, nullable=False)

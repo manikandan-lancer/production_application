@@ -3,14 +3,19 @@ import pandas as pd
 from sqlalchemy.orm import sessionmaker
 from database.connection import engine
 from database.models import (
-    Machine, Employee, CountMaster, DailyProduction, Shift
+    DailyProduction,
+    Machine,
+    Employee,
+    CountMaster,
+    Mill,
+    Department
 )
 from modules.formulas import (
     calc_efficiency,
-    calc_oee,
     calc_availability,
     calc_performance,
-    calc_quality
+    calc_quality,
+    calc_oee
 )
 
 SessionLocal = sessionmaker(bind=engine)
@@ -21,87 +26,138 @@ def daily_entry_page():
 
     session = SessionLocal()
 
-    # ----------------------------------------------------------------------
+    # -------------------------------
     # FILTERS
-    # ----------------------------------------------------------------------
-    st.subheader("Select Production Details")
+    # -------------------------------
+    date = st.date_input("Select Date")
 
-    date = st.date_input("Date")
+    shifts = ["Shift 1", "Shift 2", "Shift 3"]
+    shift_name = st.selectbox("Shift", shifts)
 
-    # Shift selection
-    shifts = session.query(Shift).all()
-    shift_map = {s.id: s.shift_name for s in shifts}
-    shift_id = st.selectbox("Shift", shift_map.keys(), format_func=lambda x: shift_map[x])
+    # Convert shift name into index 1–3
+    shift_id = shifts.index(shift_name) + 1
 
-    # Machine selection (MULTIPLE)
-    machines = session.query(Machine).all()
-    machine_map = {m.id: f"{m.frame_no} ({m.mill})" for m in machines}
-    selected_machines = st.multiselect(
-        "Select Machines", machine_map.keys(), format_func=lambda x: machine_map[x]
-    )
+    mills = session.query(Mill).all()
+    mill_map = {m.id: m.mill_name for m in mills}
+    mill_id = st.selectbox("Mill", mill_map.keys(), format_func=lambda x: mill_map[x])
 
-    # Count selection
+    departments = session.query(Department).all()
+    dept_map = {d.id: d.department_name for d in departments}
+    dept_id = st.selectbox("Department", dept_map.keys(), format_func=lambda x: dept_map[x])
+
+    # Machines for selected mill + dept
+    machines = session.query(Machine).filter(
+        Machine.mill_id == mill_id,
+        Machine.department_id == dept_id
+    ).all()
+
+    # Count (Product) Master
     counts = session.query(CountMaster).all()
     count_map = {c.id: c.count_name for c in counts}
-    count_id = st.selectbox("Count (Product)", count_map.keys(), format_func=lambda x: count_map[x])
 
-    # Employee selection
-    employees = session.query(Employee).all()
+    # Employees (mill + department filtered)
+    employees = session.query(Employee).filter(
+        Employee.mill_id == mill_id,
+        Employee.department_id == dept_id
+    ).all()
     emp_map = {e.id: f"{e.employee_no} - {e.employee_name}" for e in employees}
-    emp_id = st.selectbox("Employee", emp_map.keys(), format_func=lambda x: emp_map[x])
 
-    st.divider()
+    # -------------------------------
+    # LOAD EXISTING RECORDS
+    # -------------------------------
+    saved = session.query(DailyProduction).filter(
+        DailyProduction.date == date,
+        DailyProduction.shift_id == shift_id,
+        DailyProduction.mill_id == mill_id,
+        DailyProduction.department_id == dept_id
+    ).all()
 
-    # ----------------------------------------------------------------------
-    # GENERATE TABLE FOR ENTRY
-    # ----------------------------------------------------------------------
-    rows = []
-    for m_id in selected_machines:
-        m = session.query(Machine).filter(Machine.id == m_id).first()
+    if saved:
+        st.success("Loaded saved entries for this date.")
 
-        rows.append({
-            "machine_id": m.id,
-            "machine": m.frame_no,
-            "count_id": count_id,
-            "employee_id": emp_id,
-            "target": 0,
-            "actual": 0,
-            "waste": 0,
-            "run_hours": 0,
-            "efficiency": 0,
-            "oee": 0,
-            "remarks": ""
-        })
+        rows = []
+        for r in saved:
+            machine = session.query(Machine).filter(Machine.id == r.machine_id).first()
+            emp = session.query(Employee).filter(Employee.id == r.employee_id).first()
+            cnt = session.query(CountMaster).filter(CountMaster.id == r.count_id).first()
 
-    df = pd.DataFrame(rows)
+            rows.append({
+                "machine_id": r.machine_id,
+                "frame_no": machine.frame_no if machine else "",
+                "employee_id": r.employee_id,
+                "employee": f"{emp.employee_no} - {emp.employee_name}" if emp else "",
+                "count_id": r.count_id,
+                "count_name": cnt.count_name if cnt else "",
+                "target": r.target,
+                "actual": r.actual,
+                "waste": r.waste,
+                "run_hours": r.run_hours,
+                "efficiency": r.efficiency,
+                "oee": r.oee,
+                "remarks": r.remarks
+            })
+        df = pd.DataFrame(rows)
 
-    if df.empty:
-        st.info("Select machines to begin entering production.")
-        return
+    else:
+        st.info("No saved data found — generating blank entry list.")
 
-    edited_df = st.data_editor(df, num_rows="dynamic", use_container_width=True)
+        df = pd.DataFrame([
+            {
+                "machine_id": m.id,
+                "frame_no": m.frame_no,
+                "employee_id": None,
+                "employee": "",
+                "count_id": None,
+                "count_name": "",
+                "target": 0,
+                "actual": 0,
+                "waste": 0,
+                "run_hours": 0,
+                "efficiency": 0,
+                "oee": 0,
+                "remarks": ""
+            }
+            for m in machines
+        ])
 
-    # ----------------------------------------------------------------------
-    # AUTO CALCULATIONS
-    # ----------------------------------------------------------------------
-    for idx, row in edited_df.iterrows():
-        availability = calc_availability(row["run_hours"])
-        performance = calc_performance(row["actual"], 1, 1, 1)  # simplified, optional future update
-        quality = calc_quality(row["actual"], row["waste"])
-        efficiency = calc_efficiency(row["actual"], row["target"])
+    # -------------------------------
+    # Editable Table
+    # -------------------------------
+    edited = st.data_editor(df, use_container_width=True, num_rows="dynamic")
+
+    # -------------------------------
+    # CALCULATIONS
+    # -------------------------------
+    for idx, r in edited.iterrows():
+        availability = calc_availability(r["run_hours"], 8)
+        performance = calc_performance(r["actual"], 1, 1, 1)  # placeholder, since machine formulas may differ
+        quality = calc_quality(r["actual"], r["waste"])
+        efficiency = calc_efficiency(r["actual"], r["target"])
         oee = calc_oee(availability, performance, quality)
 
-        edited_df.at[idx, "efficiency"] = efficiency
-        edited_df.at[idx, "oee"] = oee
+        edited.at[idx, "efficiency"] = efficiency
+        edited.at[idx, "oee"] = oee
 
-    # ----------------------------------------------------------------------
-    # SAVE
-    # ----------------------------------------------------------------------
-    if st.button("💾 Save Production"):
-        for _, r in edited_df.iterrows():
-            new_entry = DailyProduction(
+    # -------------------------------
+    # SAVE DATA
+    # -------------------------------
+    if st.button("💾 Save Production Data"):
+        # Delete previous records for same date + shift + mill + dept
+        session.query(DailyProduction).filter(
+            DailyProduction.date == date,
+            DailyProduction.shift_id == shift_id,
+            DailyProduction.mill_id == mill_id,
+            DailyProduction.department_id == dept_id
+        ).delete()
+        session.commit()
+
+        # Insert new data
+        for _, r in edited.iterrows():
+            dp = DailyProduction(
                 date=date,
                 shift_id=shift_id,
+                mill_id=mill_id,
+                department_id=dept_id,
                 machine_id=r["machine_id"],
                 employee_id=r["employee_id"],
                 count_id=r["count_id"],
@@ -113,7 +169,8 @@ def daily_entry_page():
                 oee=r["oee"],
                 remarks=r["remarks"]
             )
-            session.add(new_entry)
+            session.add(dp)
 
         session.commit()
-        st.success("Production Saved Successfully!")
+        st.success("Production data saved successfully!")
+
