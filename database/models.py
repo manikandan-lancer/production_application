@@ -63,6 +63,7 @@ class Machine(Base):
     mill = relationship("Mill")
 
     spindles = Column(Integer)
+
     allocated_count_id = Column(Integer, ForeignKey("count_master.id"))
     allocated_count = relationship("CountMaster")
 
@@ -112,12 +113,3 @@ class DailyProduction(Base):
     oee = Column(Float)
 
     remarks = Column(String)
-
-# -----------------------
-# MILL MODULE
-# -----------------------
-class Mill(Base):
-    __tablename__ = "mill_master"
-
-    id = Column(Integer, primary_key=True, index=True)
-    mill_name = Column(String, nullable=False)
