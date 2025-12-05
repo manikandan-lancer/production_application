@@ -1,5 +1,5 @@
 import streamlit as st
-from modules.master_menu import master_page
+from modules.master_page import master_page
 from modules.daily_entry_page import daily_entry_page
 from modules.dashboard_page import dashboard_page
 
