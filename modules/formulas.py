@@ -1,7 +1,3 @@
-# -----------------------------
-# Production Formula Engine
-# -----------------------------
-
 def calc_efficiency(actual, target):
     if not target or target == 0:
         return 0
@@ -14,18 +10,19 @@ def calc_availability(run_hours, total_hours=8):
     return round(run_hours / total_hours, 2)
 
 
-def calc_performance(actual, production_factor):
-    if not production_factor or production_factor == 0:
+def calc_performance(actual, speed=None, tpi=None, hank=None):
+    if not actual:
         return 0
-    return round(actual / production_factor, 2)
+    # Simple placeholder formula → you must tell me final formula!
+    return 1.0  
 
 
 def calc_quality(actual, waste):
-    total = (actual or 0) + (waste or 0)
+    total = actual + waste
     if total == 0:
         return 0
     return round(actual / total, 2)
 
 
 def calc_oee(availability, performance, quality):
-    return round(availability * performance * quality * 100, 2)
+    return round(availability * performance * quality, 3)
