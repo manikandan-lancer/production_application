@@ -5,21 +5,21 @@ from database.models import Department
 
 SessionLocal = sessionmaker(bind=engine)
 
+
 def department_master_page():
-    st.title("Department Master")
+    st.header("🏢 Department Master")
 
     session = SessionLocal()
 
-    dept_name = st.text_input("Enter Department Name")
+    name = st.text_input("Department Name")
 
-    if st.button("Add Department"):
-        dept = Department(department_name=dept_name)
+    if st.button("Save Department"):
+        dept = Department(department_name=name)
         session.add(dept)
         session.commit()
-        st.success("Department Added")
+        st.success("Department Saved!")
 
-    st.subheader("Departments")
-    departments = session.query(Department).all()
-
-    for d in departments:
+    st.subheader("Existing Departments")
+    depts = session.query(Department).all()
+    for d in depts:
         st.write(f"{d.id} — {d.department_name}")

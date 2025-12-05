@@ -1,9 +1,11 @@
-from sqlalchemy import Column, Integer, String, Date, Float, ForeignKey
+from sqlalchemy import Column, Integer, String, Date, Float, ForeignKey, Time
 from sqlalchemy.orm import relationship
-from sqlalchemy.ext.hybrid import hybrid_property
-from database.connection import Base, SessionLocal
+from database.connection import Base
 
 
+# -----------------------
+# MILL MASTER
+# -----------------------
 class Mill(Base):
     __tablename__ = "mill_master"
 
@@ -11,6 +13,9 @@ class Mill(Base):
     mill_name = Column(String, nullable=False)
 
 
+# -----------------------
+# DEPARTMENT MASTER
+# -----------------------
 class Department(Base):
     __tablename__ = "department_master"
 
@@ -18,103 +23,92 @@ class Department(Base):
     department_name = Column(String, nullable=False)
 
 
+# -----------------------
+# COUNT (PRODUCT) MASTER
+# -----------------------
+class CountMaster(Base):
+    __tablename__ = "count_master"
+
+    id = Column(Integer, primary_key=True, index=True)
+    count_name = Column(String, nullable=False)
+    actual_count = Column(Float)
+    production_factor = Column(Float)
+
+
+# -----------------------
+# EMPLOYEE MASTER
+# -----------------------
 class Employee(Base):
     __tablename__ = "employee_master"
 
     id = Column(Integer, primary_key=True, index=True)
     employee_no = Column(String, nullable=False)
     employee_name = Column(String, nullable=False)
+    designation = Column(String)
 
     mill_id = Column(Integer, ForeignKey("mill_master.id"))
-    department_id = Column(Integer, ForeignKey("department_master.id"))
-
     mill = relationship("Mill")
-    department = relationship("Department")
 
 
+# -----------------------
+# MACHINE MASTER
+# -----------------------
 class Machine(Base):
     __tablename__ = "machine_master"
 
     id = Column(Integer, primary_key=True, index=True)
+    frame_no = Column(String, nullable=False)
+
     mill_id = Column(Integer, ForeignKey("mill_master.id"))
-    department_id = Column(Integer, ForeignKey("department_master.id"))
-
-    frame_number = Column(String)
-    product = Column(String)
-    speed = Column(Float)
-    tpi = Column(Float)
-    std_hank = Column(Float)
-    cycle_time = Column(Float)
-    target = Column(Integer)
-
     mill = relationship("Mill")
-    department = relationship("Department")
+
+    spindles = Column(Integer)
+    allocated_count_id = Column(Integer, ForeignKey("count_master.id"))
+    allocated_count = relationship("CountMaster")
+
+    speed = Column(Float)
+    hank = Column(Float)
+    tpi = Column(Float)
 
 
+# -----------------------
+# SHIFT MASTER
+# -----------------------
 class Shift(Base):
     __tablename__ = "shift_master"
 
     id = Column(Integer, primary_key=True, index=True)
-    shift_name = Column(String)
-    start_time = Column(String)
-    end_time = Column(String)
+    shift_name = Column(String, nullable=False)
+    start_time = Column(Time, nullable=False)
+    end_time = Column(Time, nullable=False)
+    total_hours = Column(Float, default=8.0)
 
 
+# -----------------------
+# DAILY PRODUCTION
+# -----------------------
 class DailyProduction(Base):
     __tablename__ = "daily_production"
 
     id = Column(Integer, primary_key=True, index=True)
 
-    date = Column(Date)
-    mill_id = Column(Integer, ForeignKey("mill_master.id"))
-    department_id = Column(Integer, ForeignKey("department_master.id"))
+    date = Column(Date, nullable=False)
     shift_id = Column(Integer, ForeignKey("shift_master.id"))
     machine_id = Column(Integer, ForeignKey("machine_master.id"))
     employee_id = Column(Integer, ForeignKey("employee_master.id"))
+    count_id = Column(Integer, ForeignKey("count_master.id"))
 
-    # UI INPUTS
-    actual = Column(Float)
-    waste = Column(Float)
-    run_hr = Column(Float)
-    prod = Column(Float)
-    target = Column(Integer)
-    ts = Column(String)
-    count = Column(String)
-    remarks = Column(String)
-
-    # EXTRA FIELDS
-    scrap = Column(Float, nullable=True)
-    downtime = Column(Float, nullable=True)
-
-    # FORMULA FIELDS
-    efficiency = Column(Float, nullable=True)
-    oee = Column(Float, nullable=True)
-    availability = Column(Float, nullable=True)
-    quality = Column(Float, nullable=True)
-    performance = Column(Float, nullable=True)
-
-    # Relationships
-    mill = relationship("Mill")
-    department = relationship("Department")
     shift = relationship("Shift")
     machine = relationship("Machine")
     employee = relationship("Employee")
+    count = relationship("CountMaster")
 
-    # -----------------------------------------
-    # 🔥 Hybrid properties for employee fields
-    # -----------------------------------------
+    target = Column(Float)
+    actual = Column(Float)
+    waste = Column(Float)
+    run_hours = Column(Float)
 
-    @hybrid_property
-    def employee_no(self):
-        return self.employee.employee_no if self.employee else ""
+    efficiency = Column(Float)
+    oee = Column(Float)
 
-    @employee_no.setter
-    def employee_no(self, value):
-        session = SessionLocal()
-        emp = session.query(Employee).filter(Employee.employee_no == str(value)).first()
-        self.employee_id = emp.id if emp else None
-
-    @hybrid_property
-    def employee_name_display(self):
-        """This is used only for showing in UI"""
-        return self.employee.employee_name if self.employee else ""
+    remarks = Column(String)

@@ -5,30 +5,24 @@ from database.models import Shift
 
 SessionLocal = sessionmaker(bind=engine)
 
+
 def shift_master_page():
     st.title("Shift Master")
 
     session = SessionLocal()
 
-    shift_name = st.text_input("Shift Name (A / B / C)")
-    start_time = st.time_input("Start Time")
-    end_time = st.time_input("End Time")
+    name = st.selectbox("Shift Name", ["Shift 1", "Shift 2", "Shift 3"])
+    start = st.time_input("Start Time")
+    end = st.time_input("End Time")
+    total = st.number_input("Total Hours", min_value=1.0, value=8.0)
 
-    if st.button("Add Shift"):
-        new_shift = Shift(
-            shift_name=shift_name,
-            start_time=start_time,
-            end_time=end_time
-        )
-        session.add(new_shift)
+    if st.button("Save Shift"):
+        obj = Shift(shift_name=name, start_time=start, end_time=end, total_hours=total)
+        session.add(obj)
         session.commit()
-        st.success("Shift Added Successfully!")
+        st.success("Shift Saved!")
 
     st.subheader("Existing Shifts")
     shifts = session.query(Shift).all()
-
-    if shifts:
-        for s in shifts:
-            st.write(f"**{s.shift_name}** — {s.start_time} to {s.end_time}")
-    else:
-        st.info("No shifts found.")
+    for s in shifts:
+        st.write(f"{s.id} — {s.shift_name} | {s.start_time} to {s.end_time} — {s.total_hours} hrs")
