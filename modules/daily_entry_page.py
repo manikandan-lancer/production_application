@@ -47,8 +47,7 @@ def daily_entry_page():
 
     # Machines for selected mill + dept
     machines = session.query(Machine).filter(
-        Machine.mill_id == mill_id,
-        Machine.department_id == dept_id
+        Machine.mill_id == mill_id
     ).all()
 
     # Count (Product) Master
