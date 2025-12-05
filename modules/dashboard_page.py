@@ -9,6 +9,7 @@ from database.models import (
     CountMaster,
     Shift
 )
+from io import BytesIO
 
 SessionLocal = sessionmaker(bind=engine)
 
@@ -28,23 +29,35 @@ def dashboard_page():
     # Shift list
     shifts = session.query(Shift).all()
     shift_map = {s.id: s.shift_name for s in shifts}
-    shift_id = st.selectbox("Shift", [None] + list(shift_map.keys()),
-                            format_func=lambda x: "All" if x is None else shift_map[x])
+    shift_id = st.selectbox(
+        "Shift",
+        [None] + list(shift_map.keys()),
+        format_func=lambda x: "All" if x is None else shift_map[x]
+    )
 
     machines = session.query(Machine).all()
     machine_map = {m.id: m.frame_no for m in machines}
-    machine_id = st.selectbox("Machine", [None] + list(machine_map.keys()),
-                              format_func=lambda x: "All" if x is None else machine_map[x])
+    machine_id = st.selectbox(
+        "Machine",
+        [None] + list(machine_map.keys()),
+        format_func=lambda x: "All" if x is None else machine_map[x]
+    )
 
     employees = session.query(Employee).all()
     emp_map = {e.id: f"{e.employee_no} - {e.employee_name}" for e in employees}
-    emp_id = st.selectbox("Employee", [None] + list(emp_map.keys()),
-                          format_func=lambda x: "All" if x is None else emp_map[x])
+    emp_id = st.selectbox(
+        "Employee",
+        [None] + list(emp_map.keys()),
+        format_func=lambda x: "All" if x is None else emp_map[x]
+    )
 
     counts = session.query(CountMaster).all()
     count_map = {c.id: c.count_name for c in counts}
-    count_id = st.selectbox("Count/Product", [None] + list(count_map.keys()),
-                            format_func=lambda x: "All" if x is None else count_map[x])
+    count_id = st.selectbox(
+        "Count/Product",
+        [None] + list(count_map.keys()),
+        format_func=lambda x: "All" if x is None else count_map[x]
+    )
 
     # -----------------------------------
     # QUERY DATA
@@ -106,11 +119,12 @@ def dashboard_page():
     avg_eff = df["Efficiency"].mean()
     avg_oee = df["OEE"].mean()
 
-    st.metric("Total Actual", round(total_actual, 2))
-    st.metric("Total Target", round(total_target, 2))
-    st.metric("Total Waste", round(total_waste, 2))
-    st.metric("Avg Efficiency (%)", round(avg_eff, 2))
-    st.metric("Avg OEE (%)", round(avg_oee, 2))
+    col1, col2, col3, col4, col5 = st.columns(5)
+    col1.metric("Total Actual", round(total_actual, 2))
+    col2.metric("Total Target", round(total_target, 2))
+    col3.metric("Total Waste", round(total_waste, 2))
+    col4.metric("Avg Efficiency (%)", round(avg_eff, 2))
+    col5.metric("Avg OEE (%)", round(avg_oee, 2))
 
     st.subheader("Production Records")
     st.dataframe(df, use_container_width=True)
@@ -129,15 +143,17 @@ def dashboard_page():
         mime="text/csv"
     )
 
-    # Excel Export
-    excel_buffer = pd.ExcelWriter("prod_export.xlsx", engine="openpyxl")
-    df.to_excel(excel_buffer, index=False, sheet_name="ProductionData")
-    excel_buffer.close()
+    # Excel Export (Render-safe)
+    excel_buffer = BytesIO()
 
-    with open("prod_export.xlsx", "rb") as f:
-        st.download_button(
-            label="Download Excel (.xlsx)",
-            data=f,
-            file_name="production_data.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+    with pd.ExcelWriter(excel_buffer, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="ProductionData")
+
+    excel_buffer.seek(0)
+
+    st.download_button(
+        label="Download Excel (.xlsx)",
+        data=excel_buffer,
+        file_name="production_data.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
