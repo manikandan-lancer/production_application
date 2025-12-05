@@ -132,7 +132,7 @@ def dashboard_page():
     # Excel Export
     excel_buffer = pd.ExcelWriter("prod_export.xlsx", engine="openpyxl")
     df.to_excel(excel_buffer, index=False, sheet_name="ProductionData")
-    excel_buffer.save()
+    excel_buffer.close()
 
     with open("prod_export.xlsx", "rb") as f:
         st.download_button(
