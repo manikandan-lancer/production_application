@@ -127,14 +127,21 @@ def daily_entry_page():
     # ---------------------------
     for idx, r in edited_df.iterrows():
 
-        availability = calc_availability(r["run_hours"])
-        performance = calc_performance(r["actual"])   # FIXED
-        quality = calc_quality(r["actual"], r["waste"])
-        efficiency = calc_efficiency(r["actual"], r["target"])
+        actual = float(r["actual"] or 0)
+        target = float(r["target"] or 0)
+        waste = float(r["waste"] or 0)
+        run_hours = float(r["run_hours"] or 0)
+
+        availability = calc_availability(run_hours)
+        performance = calc_performance(actual)
+        quality = calc_quality(actual, waste)
+        efficiency = calc_efficiency(actual, target)
         oee = calc_oee(availability, performance, quality)
 
+        # Store
         edited_df.at[idx, "efficiency"] = efficiency
         edited_df.at[idx, "oee"] = oee
+
 
     # ---------------------------
     # SAVE DATA

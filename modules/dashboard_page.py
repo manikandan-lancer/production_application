@@ -95,7 +95,7 @@ def dashboard_page():
             "Date": r.date,
             "Shift": shift.shift_name if shift else "",
             "Machine": machine.frame_no if machine else "",
-            "Employee": employee.employee_name if employee else "",
+            "Employee": f"{employee.employee_no} - {employee.employee_name}" if employee else "",
             "Count/Product": count.count_name if count else "",
             "Target": r.target,
             "Actual": r.actual,
