@@ -104,15 +104,31 @@ class DailyProduction(Base):
     employee_id = Column(Integer, ForeignKey("employee_master.id"))
     count_id = Column(Integer, ForeignKey("count_master.id"))
 
-    # Daily Entry Fields
-    prod_kgs = Column(Float)
-    pne_bondas = Column(Float)
-    actual_prdn = Column(Float)
-    waste = Column(Float)
-    run_hours = Column(Float)
+    # -------------------------
+    # MACHINE-PRODUCTION FIELDS
+    # (coming from Excel)
+    # -------------------------
+    worked_spindles = Column(Float)      # Column B in Excel
+    spdl_speed = Column(Float)           # Column D (Speed)
+    tpi = Column(Float)                  # Column E
+    std_hank = Column(Float)             # Column F
+    act_hank = Column(Float)             # Column G (yellow column)
+    stop_min = Column(Float)             # Column H
+    target_kgs = Column(Float)           # Column I
+
+    # -------------------------
+    # OUTPUT FIELDS
+    # -------------------------
+    prod_kgs = Column(Float)             # Prod_KGS
+    pne_bondas = Column(Float)           # Pne_Bondas
+    actual_prdn = Column(Float)          # Actual Production (Prod_KGS - Pne)
+    waste = Column(Float)                # Waste %
+    run_hours = Column(Float)            # Run hours entered manually
     remarks = Column(String)
 
-    # Future formula fields
+    # -------------------------
+    # FORMULA FIELDS (to be calculated later)
+    # -------------------------
     efficiency = Column(Float)
     oee = Column(Float)
 
