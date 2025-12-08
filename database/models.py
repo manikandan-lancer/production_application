@@ -22,7 +22,7 @@ class Mill(Base):
 class Department(Base):
     __tablename__ = "department_master"
 
-    id = Column(Integer, primary_primary=True, index=True)
+    id = Column(Integer, primary_key=True, index=True)   # <-- FIXED!
     department_name = Column(String, nullable=False)
 
 
@@ -104,6 +104,7 @@ class DailyProduction(Base):
     employee_id = Column(Integer, ForeignKey("employee_master.id"))
     count_id = Column(Integer, ForeignKey("count_master.id"))
 
+    # Daily Entry Fields
     prod_kgs = Column(Float)
     pne_bondas = Column(Float)
     actual_prdn = Column(Float)
@@ -111,9 +112,11 @@ class DailyProduction(Base):
     run_hours = Column(Float)
     remarks = Column(String)
 
+    # Future formula fields
     efficiency = Column(Float)
     oee = Column(Float)
 
+    # Relationships
     mill = relationship("Mill")
     department = relationship("Department")
     shift = relationship("Shift")
