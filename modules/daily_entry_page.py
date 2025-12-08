@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from database.connection import SessionLocal
+from database.connection import get_session
 from database.models import (
     Mill, Department, Shift, Machine, Employee,
     CountMaster, DailyProduction
@@ -13,7 +13,7 @@ from database.models import (
 def daily_entry_page():
     st.title("📘 Daily Production Entry")
 
-    session = SessionLocal()
+    session = next(get_session())
 
     # -------------------------------------------------------
     # SELECTION PANEL
