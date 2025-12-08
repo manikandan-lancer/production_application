@@ -1,32 +1,42 @@
 import streamlit as st
 
-from modules.count_master_page import count_master_page
-from modules.employee_master_page import employee_master_page
-from modules.machine_master_page import machine_master_page
-from modules.department_master_page import department_master_page
+from modules.masters.mill_master_page import mill_master_page
+from modules.masters.department_master_page import department_master_page
+from modules.masters.shift_master_page import shift_master_page
+from modules.masters.count_master_page import count_master_page
+from modules.masters.machine_master_page import machine_master_page
+from modules.masters.employee_master_page import employee_master_page
 
 
 def master_page():
-    st.title("🗂 Master Data")
+    st.title("⚙️ Master Data Management")
 
-    choice = st.selectbox(
-        "Select Master",
+    menu = st.selectbox(
+        "Choose Master Section",
         [
-            "Count Master",
-            "Employee Master",
+            "Mill Master",
+            "Department Master",
+            "Shift Master",
+            "Count / Product Master",
             "Machine Master",
-            "Department Master"
+            "Employee Master",
         ]
     )
 
-    if choice == "Count Master":
+    if menu == "Mill Master":
+        mill_master_page()
+
+    elif menu == "Department Master":
+        department_master_page()
+
+    elif menu == "Shift Master":
+        shift_master_page()
+
+    elif menu == "Count / Product Master":
         count_master_page()
 
-    elif choice == "Employee Master":
-        employee_master_page()
-
-    elif choice == "Machine Master":
+    elif menu == "Machine Master":
         machine_master_page()
 
-    elif choice == "Department Master":
-        department_master_page()
+    elif menu == "Employee Master":
+        employee_master_page()

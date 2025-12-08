@@ -1,10 +1,10 @@
 import streamlit as st
 
-from modules.mill_master_page import mill_master_page
-from modules.department_master_page import department_master_page
-from modules.employee_master_page import employee_master_page
-from modules.machine_master_page import machine_master_page
-from modules.shift_master_page import shift_master_page
+from modules.masters.mill_master_page import mill_master_page
+from modules.masters.department_master_page import department_master_page
+from modules.masters.employee_master_page import employee_master_page
+from modules.masters.machine_master_page import machine_master_page
+from modules.masters.shift_master_page import shift_master_page
 
 
 def master_data_page():
