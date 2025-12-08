@@ -1,5 +1,5 @@
 from sqlalchemy import (
-    Column, Integer, String, Float, Date, Time, ForeignKey
+    Column, Integer, String, Date, Time, ForeignKey, Numeric
 )
 from sqlalchemy.orm import relationship
 from database.connection import Base
@@ -16,7 +16,7 @@ class Mill(Base):
 
 
 # -------------------------------------------------------
-# DEPARTMENT MASTER (1,2,3)
+# DEPARTMENT MASTER
 # -------------------------------------------------------
 class Department(Base):
     __tablename__ = "department_master"
@@ -35,7 +35,8 @@ class Shift(Base):
     shift_name = Column(String, nullable=False)
     start_time = Column(Time, nullable=False)
     end_time = Column(Time, nullable=False)
-    total_hours = Column(Float, default=8.0)
+
+    total_hours = Column(Numeric(10, 2), default=8.00)
 
 
 # -------------------------------------------------------
@@ -45,7 +46,6 @@ class CountMaster(Base):
     __tablename__ = "count_master"
 
     id = Column(Integer, primary_key=True, index=True)
-
     mill_id = Column(Integer, ForeignKey("mill_master.id"), nullable=False)
     count_name = Column(String, nullable=False)
 
@@ -59,6 +59,7 @@ class Machine(Base):
     __tablename__ = "machine_master"
 
     id = Column(Integer, primary_key=True, index=True)
+
     mill_id = Column(Integer, ForeignKey("mill_master.id"), nullable=False)
     department_id = Column(Integer, ForeignKey("department_master.id"), nullable=False)
 
@@ -85,12 +86,11 @@ class Employee(Base):
     designation = Column(String)
 
     mill_id = Column(Integer, ForeignKey("mill_master.id"))
-
     mill = relationship("Mill")
 
 
 # -------------------------------------------------------
-# DAILY PRODUCTION (FINAL STRUCTURE)
+# DAILY PRODUCTION ENTRY (ALL DECIMAL FIELDS)
 # -------------------------------------------------------
 class DailyProduction(Base):
     __tablename__ = "daily_production"
@@ -106,25 +106,26 @@ class DailyProduction(Base):
     employee_id = Column(Integer, ForeignKey("employee_master.id"))
     count_id = Column(Integer, ForeignKey("count_master.id"))
 
-    # New Daily Entry Fields
-    worked_spindles = Column(Integer)
-    spdl_speed = Column(Float)
-    tpi = Column(Float)
-    std_hank = Column(Float)
-    act_hank = Column(Float)
-    stop_min = Column(Float)
-    target_kgs = Column(Float)
+    # Values that must be precise decimals
+    worked_spindles = Column(Numeric(10, 2))
+    spdl_speed = Column(Numeric(10, 2))
+    tpi = Column(Numeric(10, 2))
+    std_hank = Column(Numeric(10, 2))
+    act_hank = Column(Numeric(10, 2))
+    stop_min = Column(Numeric(10, 2))
+    target_kgs = Column(Numeric(10, 2))
 
-    prod_kgs = Column(Float)
-    pne_bondas = Column(Float)
-    actual_prdn = Column(Float)
-    waste = Column(Float)
-    run_hours = Column(Float)
+    prod_kgs = Column(Numeric(10, 2))
+    pne_bondas = Column(Numeric(10, 2))
+    actual_prdn = Column(Numeric(10, 2))
+    waste = Column(Numeric(10, 2))
+    run_hours = Column(Numeric(10, 2))
+
     remarks = Column(String)
 
-    # Future formula fields
-    efficiency = Column(Float)
-    oee = Column(Float)
+    # Calculated values (decimal)
+    efficiency = Column(Numeric(10, 2))
+    oee = Column(Numeric(10, 2))
 
     mill = relationship("Mill")
     department = relationship("Department")
