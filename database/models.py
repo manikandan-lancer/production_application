@@ -1,6 +1,5 @@
 from sqlalchemy import (
-    Column, Integer, String, Float, Date, Time,
-    ForeignKey
+    Column, Integer, String, Float, Date, Time, ForeignKey
 )
 from sqlalchemy.orm import relationship
 from database.connection import Base
@@ -17,17 +16,17 @@ class Mill(Base):
 
 
 # -------------------------------------------------------
-# DEPARTMENT MASTER (1, 2, 3)
+# DEPARTMENT MASTER (1,2,3)
 # -------------------------------------------------------
 class Department(Base):
     __tablename__ = "department_master"
 
-    id = Column(Integer, primary_key=True, index=True)   # <-- FIXED!
+    id = Column(Integer, primary_key=True, index=True)
     department_name = Column(String, nullable=False)
 
 
 # -------------------------------------------------------
-# SHIFT MASTER (Shift 1, Shift 2, Shift 3)
+# SHIFT MASTER
 # -------------------------------------------------------
 class Shift(Base):
     __tablename__ = "shift_master"
@@ -46,6 +45,7 @@ class CountMaster(Base):
     __tablename__ = "count_master"
 
     id = Column(Integer, primary_key=True, index=True)
+
     mill_id = Column(Integer, ForeignKey("mill_master.id"), nullable=False)
     count_name = Column(String, nullable=False)
 
@@ -64,6 +64,7 @@ class Machine(Base):
 
     machine_name = Column(String, nullable=False)
     spindles = Column(Integer)
+
     allocated_count_id = Column(Integer, ForeignKey("count_master.id"))
 
     mill = relationship("Mill")
@@ -78,11 +79,13 @@ class Employee(Base):
     __tablename__ = "employee_master"
 
     id = Column(Integer, primary_key=True, index=True)
+
     employee_no = Column(String, nullable=False)
     employee_name = Column(String, nullable=False)
     designation = Column(String)
 
     mill_id = Column(Integer, ForeignKey("mill_master.id"))
+
     mill = relationship("Mill")
 
 
@@ -98,41 +101,31 @@ class DailyProduction(Base):
 
     mill_id = Column(Integer, ForeignKey("mill_master.id"), nullable=False)
     department_id = Column(Integer, ForeignKey("department_master.id"), nullable=False)
-
     shift_id = Column(Integer, ForeignKey("shift_master.id"), nullable=False)
     machine_id = Column(Integer, ForeignKey("machine_master.id"), nullable=False)
     employee_id = Column(Integer, ForeignKey("employee_master.id"))
     count_id = Column(Integer, ForeignKey("count_master.id"))
 
-    # -------------------------
-    # MACHINE-PRODUCTION FIELDS
-    # (coming from Excel)
-    # -------------------------
-    worked_spindles = Column(Float)      # Column B in Excel
-    spdl_speed = Column(Float)           # Column D (Speed)
-    tpi = Column(Float)                  # Column E
-    std_hank = Column(Float)             # Column F
-    act_hank = Column(Float)             # Column G (yellow column)
-    stop_min = Column(Float)             # Column H
-    target_kgs = Column(Float)           # Column I
+    # New Daily Entry Fields
+    worked_spindles = Column(Integer)
+    spdl_speed = Column(Float)
+    tpi = Column(Float)
+    std_hank = Column(Float)
+    act_hank = Column(Float)
+    stop_min = Column(Float)
+    target_kgs = Column(Float)
 
-    # -------------------------
-    # OUTPUT FIELDS
-    # -------------------------
-    prod_kgs = Column(Float)             # Prod_KGS
-    pne_bondas = Column(Float)           # Pne_Bondas
-    actual_prdn = Column(Float)          # Actual Production (Prod_KGS - Pne)
-    waste = Column(Float)                # Waste %
-    run_hours = Column(Float)            # Run hours entered manually
+    prod_kgs = Column(Float)
+    pne_bondas = Column(Float)
+    actual_prdn = Column(Float)
+    waste = Column(Float)
+    run_hours = Column(Float)
     remarks = Column(String)
 
-    # -------------------------
-    # FORMULA FIELDS (to be calculated later)
-    # -------------------------
+    # Future formula fields
     efficiency = Column(Float)
     oee = Column(Float)
 
-    # Relationships
     mill = relationship("Mill")
     department = relationship("Department")
     shift = relationship("Shift")
