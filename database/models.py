@@ -53,7 +53,7 @@ class CountMaster(Base):
 
 
 # -------------------------------------------------------
-# MACHINE MASTER
+# MACHINE MASTER (CONTAINS CONSTANTS)
 # -------------------------------------------------------
 class Machine(Base):
     __tablename__ = "machine_master"
@@ -64,7 +64,11 @@ class Machine(Base):
     department_id = Column(Integer, ForeignKey("department_master.id"), nullable=False)
 
     machine_name = Column(String, nullable=False)
-    spindles = Column(Integer)
+    spindles = Column(Integer)  # manually entered by user
+
+    # CONSTANT MACHINE VALUES
+    spdl_speed = Column(Numeric(10, 2))   # constant per machine
+    tpi = Column(Numeric(10, 2))          # constant per machine
 
     allocated_count_id = Column(Integer, ForeignKey("count_master.id"))
 
@@ -80,7 +84,6 @@ class Employee(Base):
     __tablename__ = "employee_master"
 
     id = Column(Integer, primary_key=True, index=True)
-
     employee_no = Column(String, nullable=False)
     employee_name = Column(String, nullable=False)
     designation = Column(String)
@@ -90,7 +93,7 @@ class Employee(Base):
 
 
 # -------------------------------------------------------
-# DAILY PRODUCTION ENTRY (ALL DECIMAL FIELDS)
+# DAILY PRODUCTION ENTRY
 # -------------------------------------------------------
 class DailyProduction(Base):
     __tablename__ = "daily_production"
@@ -102,14 +105,15 @@ class DailyProduction(Base):
     mill_id = Column(Integer, ForeignKey("mill_master.id"), nullable=False)
     department_id = Column(Integer, ForeignKey("department_master.id"), nullable=False)
     shift_id = Column(Integer, ForeignKey("shift_master.id"), nullable=False)
+
     machine_id = Column(Integer, ForeignKey("machine_master.id"), nullable=False)
     employee_id = Column(Integer, ForeignKey("employee_master.id"))
     count_id = Column(Integer, ForeignKey("count_master.id"))
 
-    # Values that must be precise decimals
     worked_spindles = Column(Numeric(10, 2))
-    spdl_speed = Column(Numeric(10, 2))
-    tpi = Column(Numeric(10, 2))
+    spdl_speed = Column(Numeric(10, 2))  # snapshotted from MachineMaster
+    tpi = Column(Numeric(10, 2))         # snapshotted from MachineMaster
+
     std_hank = Column(Numeric(10, 2))
     act_hank = Column(Numeric(10, 2))
     stop_min = Column(Numeric(10, 2))
@@ -123,7 +127,6 @@ class DailyProduction(Base):
 
     remarks = Column(String)
 
-    # Calculated values (decimal)
     efficiency = Column(Numeric(10, 2))
     oee = Column(Numeric(10, 2))
 
