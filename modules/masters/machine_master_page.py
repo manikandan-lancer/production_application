@@ -3,7 +3,7 @@ import pandas as pd
 from database.connection import get_session
 from database.models import Mill, Department, Machine
 from sqlalchemy.orm import Session
-from modules.calc_engine import calc_std_hank
+from utils.calc_engine import calc_std_hank
 
 
 def machine_master_page():
