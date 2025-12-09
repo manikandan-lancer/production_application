@@ -1,131 +1,90 @@
 import streamlit as st
 import pandas as pd
 from database.connection import get_session
-from database.models import Mill, Department, CountMaster, Machine
+from database.models import Mill, Department, Machine
+from sqlalchemy.orm import Session
+from modules.calc_engine import calc_std_hank
 
 
-# -------------------------------------------------------
-# MACHINE MASTER PAGE
-# -------------------------------------------------------
 def machine_master_page():
+    st.header("🛠 Machine Master")
 
-    session = next(get_session())
+    session: Session = next(get_session())
 
-    st.header("⚙️ Machine Master")
-
-    # ------------------------------
-    # Dropdowns for Mill & Department
-    # ------------------------------
     mills = session.query(Mill).all()
     mill_map = {m.id: m.mill_name for m in mills}
 
-    mill_id = st.selectbox(
-        "Mill",
-        mill_map.keys(),
-        format_func=lambda x: mill_map[x]
-    )
+    depts = session.query(Department).all()
+    dept_map = {d.id: d.department_name for d in depts}
 
-    departments = session.query(Department).all()
-    dept_map = {d.id: d.department_name for d in departments}
+    # -----------------------------------
+    # ADD MACHINE
+    # -----------------------------------
+    with st.form("machine_form"):
+        st.subheader("➕ Add Machine")
 
-    dept_id = st.selectbox(
-        "Department",
-        dept_map.keys(),
-        format_func=lambda x: dept_map[x]
-    )
+        colA, colB = st.columns(2)
 
-    # ------------------------------
-    # Machine name
-    # ------------------------------
-    machine_name = st.text_input("Machine Name (A01, B05, ...)", "")
+        with colA:
+            mill_id = st.selectbox("Mill", mill_map.keys(), format_func=lambda x: mill_map[x])
+            dept_id = st.selectbox("Department", dept_map.keys(), format_func=lambda x: dept_map[x])
+            machine_name = st.text_input("Machine Name")
 
-    # ------------------------------
-    # Spindles
-    # ------------------------------
-    spindles = st.number_input("Spindles", min_value=0, value=0)
+        with colB:
+            spindles = st.number_input("Spindles", step=1)
+            spdl_speed = st.number_input("Speed", step=1.0)
+            tpi = st.number_input("TPI", step=0.01)
+            efficiency = st.number_input("Efficiency (%)", step=0.01)
 
-    # ------------------------------
-    # Spindle Speed (NEW FIELD)
-    # ------------------------------
-    spdl_speed = st.number_input("Spindle Speed (RPM)", min_value=0.0, value=0.0, step=0.01)
+        std_hank = calc_std_hank(spdl_speed, tpi, efficiency)
+        st.write(f"📘 STD Hank: **{std_hank}**")
 
-    # ------------------------------
-    # TPI (NEW FIELD)
-    # ------------------------------
-    tpi = st.number_input("TPI (Twist Per Inch)", min_value=0.0, value=0.0, step=0.01)
-
-    # ------------------------------
-    # Allocated Count
-    # ------------------------------
-    counts = session.query(CountMaster).filter(CountMaster.mill_id == mill_id).all()
-    count_map = {c.id: c.count_name for c in counts}
-
-    count_id = st.selectbox(
-        "Allocated Count",
-        [None] + list(count_map.keys()),
-        format_func=lambda x: "None" if x is None else count_map[x]
-    )
-
-    # ------------------------------
-    # SAVE MACHINE
-    # ------------------------------
-    if st.button("Save Machine"):
-
-        if not machine_name:
-            st.error("Machine name cannot be empty.")
-            return
-
-        existing = session.query(Machine).filter_by(machine_name=machine_name).first()
-
-        if existing:
-            # UPDATE
-            existing.mill_id = mill_id
-            existing.department_id = dept_id
-            existing.spindles = spindles
-            existing.spdl_speed = spdl_speed
-            existing.tpi = tpi
-            existing.allocated_count_id = count_id
-
-            session.commit()
-            st.success(f"Updated Machine {machine_name}")
-        else:
-            # INSERT
+        if st.form_submit_button("💾 Save Machine"):
             m = Machine(
-                machine_name=machine_name,
                 mill_id=mill_id,
                 department_id=dept_id,
+                machine_name=machine_name,
                 spindles=spindles,
                 spdl_speed=spdl_speed,
                 tpi=tpi,
-                allocated_count_id=count_id
+                efficiency=efficiency,
+                std_hank=std_hank
             )
             session.add(m)
             session.commit()
-            st.success(f"Added Machine {machine_name}")
+            st.success("✔ Machine Added")
 
-    st.markdown("---")
-
-    # -------------------------------------------------------
-    # TABLE VIEW OF MACHINES
-    # -------------------------------------------------------
+    st.divider()
     st.subheader("📄 Machine List")
 
-    machines = session.query(Machine).filter(
-        Machine.mill_id == mill_id,
-        Machine.department_id == dept_id
-    ).order_by(Machine.machine_name.asc()).all()
+    machines = session.query(Machine).all()
 
-    table = []
-
-    for m in machines:
-        table.append({
+    df = pd.DataFrame([
+        {
+            "id": m.id,
             "Machine": m.machine_name,
+            "Mill": mill_map[m.mill_id],
+            "Dept": dept_map[m.department_id],
             "Spindles": m.spindles,
-            "Spindle Speed": float(m.spdl_speed or 0),
+            "Speed": float(m.spdl_speed or 0),
             "TPI": float(m.tpi or 0),
-            "Count": m.allocated_count.count_name if m.allocated_count else ""
-        })
+            "Efficiency": float(m.efficiency or 0),
+            "STD Hank": float(m.std_hank or 0),
+        }
+        for m in machines
+    ])
 
-    df = pd.DataFrame(table)
+    edited = st.data_editor(df, use_container_width=True, hide_index=True)
 
-    st.dataframe(df, use_container_width=True)
+    if st.button("💾 Update Machines"):
+        for _, row in edited.iterrows():
+            m = session.query(Machine).filter_by(id=row["id"]).first()
+
+            m.spindles = row["Spindles"]
+            m.spdl_speed = row["Speed"]
+            m.tpi = row["TPI"]
+            m.efficiency = row["Efficiency"]
+            m.std_hank = calc_std_hank(row["Speed"], row["TPI"], row["Efficiency"])
+
+        session.commit()
+        st.success("✔ Updated Machines")

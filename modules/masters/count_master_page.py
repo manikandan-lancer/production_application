@@ -1,70 +1,82 @@
 import streamlit as st
-from database.connection import get_session
-from database.models import CountMaster, Mill
+import pandas as pd
 from sqlalchemy.orm import Session
+from database.connection import get_session
+from database.models import Mill, CountMaster
+from modules.calc_engine import calc_conversion_factor
 
 
 def count_master_page():
+    st.header("🧵 Count Master (Product Setup)")
+    st.info("Setup actual count, efficiency base, and conversion factor.")
 
     session: Session = next(get_session())
-
-    st.subheader("📦 Count Master")
 
     mills = session.query(Mill).all()
     mill_map = {m.id: m.mill_name for m in mills}
 
-    colA, colB = st.columns(2)
-    with colA:
-        mill_id = st.selectbox(
-            "Select Mill",
-            mill_map.keys(),
-            format_func=lambda x: mill_map[x]
-        )
+    # ---------------------------------------
+    # ADD NEW COUNT
+    # ---------------------------------------
+    with st.form("add_count"):
+        st.subheader("➕ Add Count")
 
-    with colB:
-        count_name = st.text_input("Count Name (Ex: 60PSF)")
+        col1, col2 = st.columns(2)
+        with col1:
+            mill_id = st.selectbox("Mill", mill_map.keys(), format_func=lambda x: mill_map[x])
+            count_name = st.text_input("Count Name")
 
-    col1, col2, col3 = st.columns(3)
+        with col2:
+            actual_count = st.number_input("Actual Count", step=0.01)
+            efficiency_base = st.number_input("Efficiency Base (%)", step=0.01)
 
-    with col1:
-        actual_count = st.number_input("Actual Count", min_value=0.0, step=0.01)
+        preview_factor = calc_conversion_factor(actual_count, efficiency_base)
+        st.write(f"📘 Conversion Factor: **{preview_factor}**")
 
-    with col2:
-        conversion_factor = st.number_input("Conversion Factor", min_value=0.0, step=0.0001)
+        submit = st.form_submit_button("💾 Save")
 
-    with col3:
-        efficiency_base = st.number_input("Efficiency Base", min_value=0.0, step=0.01)
-
-    if st.button("💾 Save Count"):
-        if count_name.strip() == "":
-            st.error("Count Name is required!")
-            return
-
-        count_obj = CountMaster(
-            mill_id=mill_id,
-            count_name=count_name.strip(),
-            actual_count=actual_count,
-            conversion_factor=conversion_factor,
-            efficiency_base=efficiency_base
-        )
-
-        session.add(count_obj)
-        session.commit()
-        st.success("✅ Count Saved Successfully!")
+        if submit:
+            c = CountMaster(
+                mill_id=mill_id,
+                count_name=count_name,
+                actual_count=actual_count,
+                efficiency_base=efficiency_base,
+                conversion_factor=preview_factor
+            )
+            session.add(c)
+            session.commit()
+            st.success("✔ Count Added")
 
     st.divider()
+    st.subheader("📄 Existing Counts")
 
-    st.subheader("📋 Existing Counts")
+    # LOAD LIST
+    counts = session.query(CountMaster).order_by(CountMaster.mill_id.asc()).all()
 
-    all_counts = session.query(CountMaster).order_by(CountMaster.id.asc()).all()
-
-    st.dataframe([
+    df = pd.DataFrame([
         {
+            "id": c.id,
             "Mill": mill_map[c.mill_id],
-            "Count Name": c.count_name,
+            "Count": c.count_name,
             "Actual Count": float(c.actual_count or 0),
+            "Efficiency Base": float(c.efficiency_base or 0),
             "Conversion Factor": float(c.conversion_factor or 0),
-            "Efficiency Base": float(c.efficiency_base or 0)
         }
-        for c in all_counts
-    ], use_container_width=True)
+        for c in counts
+    ])
+
+    edited = st.data_editor(df, use_container_width=True, hide_index=True)
+
+    # SAVE UPDATE
+    if st.button("💾 Update Counts"):
+        for _, row in edited.iterrows():
+            c = session.query(CountMaster).filter_by(id=row["id"]).first()
+
+            c.actual_count = row["Actual Count"]
+            c.efficiency_base = row["Efficiency Base"]
+            c.conversion_factor = calc_conversion_factor(
+                row["Actual Count"], row["Efficiency Base"]
+            )
+
+        session.commit()
+        st.success("✔ Updated successfully")
