@@ -230,6 +230,7 @@ def daily_entry_page():
 
                 act_hank=r["act_hank"],
                 stop_min=r["stop_min"],
+                waste_percent=calc_waste_percent(r["waste"], r["prod_kgs"]),
                 run_hours=r["run_hours"],
                 target_kgs=r["target_kgs"],
 

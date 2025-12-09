@@ -136,6 +136,7 @@ class DailyProduction(Base):
     prod_kgs = Column(Numeric(10, 2))
     pne_bondas = Column(Numeric(10, 2))
     waste = Column(Numeric(10, 2))
+    waste_percent = Column(Numeric(10, 2))   # NEW
     run_hours = Column(Numeric(10, 2))
 
     remarks = Column(String)
