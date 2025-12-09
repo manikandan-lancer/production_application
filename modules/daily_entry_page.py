@@ -41,7 +41,7 @@ def daily_entry_page():
     st.divider()
 
     # -------------------------------------------------------
-    # LOAD MACHINE LIST FOR THIS MILL + DEPARTMENT
+    # LOAD MACHINE LIST
     # -------------------------------------------------------
     machines = session.query(Machine).filter(
         Machine.mill_id == mill_id,
@@ -53,7 +53,7 @@ def daily_entry_page():
         return
 
     # -------------------------------------------------------
-    # CHECK EXISTING SAVED RECORDS
+    # CHECK EXISTING DATA
     # -------------------------------------------------------
     saved = session.query(DailyProduction).filter(
         DailyProduction.date == date,
@@ -63,7 +63,7 @@ def daily_entry_page():
     ).all()
 
     # -------------------------------------------------------
-    # IF SAVED → LOAD DATA
+    # LOAD SAVED DATA
     # -------------------------------------------------------
     if saved:
         st.success("Loaded saved records.")
@@ -79,14 +79,11 @@ def daily_entry_page():
                 "employee_no": r.employee.employee_no if r.employee else "",
                 "employee_name": r.employee.employee_name if r.employee else "",
 
-                # Auto from saved DB
                 "worked_spindles": float(r.worked_spindles or 0),
 
-                # Machine constants
                 "spdl_speed": float(r.spdl_speed or 0),
                 "tpi": float(r.tpi or 0),
 
-                # Entry fields
                 "std_hank": float(r.std_hank or 0),
                 "act_hank": float(r.act_hank or 0),
                 "stop_min": float(r.stop_min or 0),
@@ -106,7 +103,7 @@ def daily_entry_page():
         ])
 
     # -------------------------------------------------------
-    # IF NO SAVED DATA → GENERATE NEW ENTRY SHEET
+    # GENERATE FRESH ENTRY TABLE
     # -------------------------------------------------------
     else:
         st.info("Generating new entry sheet...")
@@ -114,7 +111,6 @@ def daily_entry_page():
         rows = []
         for m in machines:
 
-            # Fetch allocated count
             count_obj = session.query(CountMaster).filter(
                 CountMaster.id == m.allocated_count_id
             ).first()
@@ -131,7 +127,7 @@ def daily_entry_page():
 
                 "worked_spindles": 0.0,
 
-                # AUTO-FILL CONSTANTS FROM MACHINE MASTER
+                # AUTO-FILL CONST FROM MACHINE MASTER
                 "spdl_speed": float(m.spdl_speed or 0),
                 "tpi": float(m.tpi or 0),
 
@@ -154,7 +150,7 @@ def daily_entry_page():
         df = pd.DataFrame(rows)
 
     # -------------------------------------------------------
-    # AUTO-FILL EMPLOYEE NAME FROM NUMBER
+    # AUTO-FILL EMPLOYEE NAME
     # -------------------------------------------------------
     for idx, row in df.iterrows():
         emp_no = str(row["employee_no"]).strip()
@@ -175,31 +171,37 @@ def daily_entry_page():
     ]
 
     # -------------------------------------------------------
-    # SHOW EDITOR
+    # SHOW TABLE
     # -------------------------------------------------------
-    edited_df = st.data_editor(df, disabled=readonly_cols, use_container_width=True)
+    edited_df = st.data_editor(
+        df,
+        disabled=readonly_cols,
+        use_container_width=True,
+        column_config={
+            "count_name": st.column_config.TextColumn(disabled=True)
+        }
+    )
 
     # -------------------------------------------------------
-    # LIVE CALCULATIONS
+    # CALCULATIONS
     # -------------------------------------------------------
     for idx, r in edited_df.iterrows():
 
         prod = float(r["prod_kgs"] or 0)
         pne = float(r["pne_bondas"] or 0)
 
-        # actual = prod - pne
-        edited_df.at[idx, "actual_prdn"] = prod - pne
+        actual_prdn = prod - pne
+        edited_df.at[idx, "actual_prdn"] = actual_prdn
 
-        # will compute later
+        # Placeholder (calculated once formulas done)
         edited_df.at[idx, "efficiency"] = 0.0
         edited_df.at[idx, "oee"] = 0.0
 
     # -------------------------------------------------------
-    # SAVE BUTTON
+    # SAVE DATA
     # -------------------------------------------------------
     if st.button("💾 Save Daily Production"):
 
-        # Remove old entries
         session.query(DailyProduction).filter(
             DailyProduction.date == date,
             DailyProduction.mill_id == mill_id,
@@ -208,7 +210,6 @@ def daily_entry_page():
         ).delete()
         session.commit()
 
-        # Save new entries
         for _, r in edited_df.iterrows():
 
             emp_obj = None

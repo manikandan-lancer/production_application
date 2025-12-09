@@ -49,6 +49,11 @@ class CountMaster(Base):
     mill_id = Column(Integer, ForeignKey("mill_master.id"), nullable=False)
     count_name = Column(String, nullable=False)
 
+    # NEW FIELDS
+    actual_count = Column(Numeric(10, 2), default=0)
+    conversion_factor = Column(Numeric(10, 4), default=0)
+    efficiency_base = Column(Numeric(10, 2), default=0)
+
     mill = relationship("Mill")
 
 
