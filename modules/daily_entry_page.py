@@ -26,29 +26,17 @@ def daily_entry_page():
     with colB:
         mills = session.query(Mill).all()
         mill_map = {m.id: m.mill_name for m in mills}
-        mill_id = st.selectbox(
-            "Mill",
-            mill_map.keys(),
-            format_func=lambda x: mill_map[x]
-        )
+        mill_id = st.selectbox("Mill", mill_map.keys(), format_func=lambda x: mill_map[x])
 
     with colC:
         depts = session.query(Department).all()
         dept_map = {d.id: d.department_name for d in depts}
-        dept_id = st.selectbox(
-            "Department",
-            dept_map.keys(),
-            format_func=lambda x: dept_map[x]
-        )
+        dept_id = st.selectbox("Department", dept_map.keys(), format_func=lambda x: dept_map[x])
 
     with colD:
         shifts = session.query(Shift).all()
         shift_map = {s.id: s.shift_name for s in shifts}
-        shift_id = st.selectbox(
-            "Shift",
-            shift_map.keys(),
-            format_func=lambda x: shift_map[x]
-        )
+        shift_id = st.selectbox("Shift", shift_map.keys(), format_func=lambda x: shift_map[x])
 
     st.divider()
 
@@ -91,9 +79,14 @@ def daily_entry_page():
                 "employee_no": r.employee.employee_no if r.employee else "",
                 "employee_name": r.employee.employee_name if r.employee else "",
 
+                # Auto from saved DB
                 "worked_spindles": float(r.worked_spindles or 0),
+
+                # Machine constants
                 "spdl_speed": float(r.spdl_speed or 0),
                 "tpi": float(r.tpi or 0),
+
+                # Entry fields
                 "std_hank": float(r.std_hank or 0),
                 "act_hank": float(r.act_hank or 0),
                 "stop_min": float(r.stop_min or 0),
@@ -120,6 +113,8 @@ def daily_entry_page():
 
         rows = []
         for m in machines:
+
+            # Fetch allocated count
             count_obj = session.query(CountMaster).filter(
                 CountMaster.id == m.allocated_count_id
             ).first()
@@ -135,8 +130,11 @@ def daily_entry_page():
                 "employee_name": "",
 
                 "worked_spindles": 0.0,
-                "spdl_speed": 0.0,
-                "tpi": 0.0,
+
+                # AUTO-FILL CONSTANTS FROM MACHINE MASTER
+                "spdl_speed": float(m.spdl_speed or 0),
+                "tpi": float(m.tpi or 0),
+
                 "std_hank": 0.0,
                 "act_hank": 0.0,
                 "stop_min": 0.0,
@@ -156,7 +154,7 @@ def daily_entry_page():
         df = pd.DataFrame(rows)
 
     # -------------------------------------------------------
-    # AUTO-FILL EMPLOYEE NAME FROM NO
+    # AUTO-FILL EMPLOYEE NAME FROM NUMBER
     # -------------------------------------------------------
     for idx, row in df.iterrows():
         emp_no = str(row["employee_no"]).strip()
@@ -172,17 +170,14 @@ def daily_entry_page():
         "machine_id", "machine_name",
         "count_id", "count_name",
         "employee_name",
+        "spdl_speed", "tpi",
         "actual_prdn", "efficiency", "oee"
     ]
 
     # -------------------------------------------------------
     # SHOW EDITOR
     # -------------------------------------------------------
-    edited_df = st.data_editor(
-        df,
-        disabled=readonly_cols,
-        use_container_width=True
-    )
+    edited_df = st.data_editor(df, disabled=readonly_cols, use_container_width=True)
 
     # -------------------------------------------------------
     # LIVE CALCULATIONS
@@ -192,10 +187,10 @@ def daily_entry_page():
         prod = float(r["prod_kgs"] or 0)
         pne = float(r["pne_bondas"] or 0)
 
-        actual_prdn = prod - pne
-        edited_df.at[idx, "actual_prdn"] = actual_prdn
+        # actual = prod - pne
+        edited_df.at[idx, "actual_prdn"] = prod - pne
 
-        # Placeholder until formulas integrated
+        # will compute later
         edited_df.at[idx, "efficiency"] = 0.0
         edited_df.at[idx, "oee"] = 0.0
 
@@ -203,7 +198,8 @@ def daily_entry_page():
     # SAVE BUTTON
     # -------------------------------------------------------
     if st.button("💾 Save Daily Production"):
-        # Remove previous entries
+
+        # Remove old entries
         session.query(DailyProduction).filter(
             DailyProduction.date == date,
             DailyProduction.mill_id == mill_id,
@@ -212,7 +208,7 @@ def daily_entry_page():
         ).delete()
         session.commit()
 
-        # Insert new entries
+        # Save new entries
         for _, r in edited_df.iterrows():
 
             emp_obj = None
