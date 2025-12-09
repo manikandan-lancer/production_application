@@ -40,7 +40,7 @@ class Shift(Base):
 
 
 # -------------------------------------------------------
-# COUNT MASTER (Product Setup)
+# COUNT MASTER
 # -------------------------------------------------------
 class CountMaster(Base):
     __tablename__ = "count_master"
@@ -50,18 +50,18 @@ class CountMaster(Base):
 
     count_name = Column(String, nullable=False)
 
-    # Custom user-entered fields
-    actual_count = Column(Numeric(10, 4))        # e.g. 44.90
-    efficiency_base = Column(Numeric(10, 2))     # % (ex: 85)
+    # User-entered fields
+    actual_count = Column(Numeric(10, 4))
+    efficiency_base = Column(Numeric(10, 2))
 
-    # System calculated value (auto from calc_engine)
-    conversion_factor = Column(Numeric(12, 8))
+    # Auto-calculated field
+    conversion_factor = Column(Numeric(12, 6))
 
     mill = relationship("Mill")
 
 
 # -------------------------------------------------------
-# MACHINE MASTER (with constants)
+# MACHINE MASTER
 # -------------------------------------------------------
 class Machine(Base):
     __tablename__ = "machine_master"
@@ -75,19 +75,17 @@ class Machine(Base):
 
     spindles = Column(Integer)
 
+    # Machine is linked to exactly one count
     allocated_count_id = Column(Integer, ForeignKey("count_master.id"))
 
-    # User-entered constants
     spdl_speed = Column(Numeric(10, 2))
     tpi = Column(Numeric(10, 2))
-    efficiency = Column(Numeric(10, 2))          # % (ex: 85)
-
-    # Auto-calculated from calc_engine
-    std_hank = Column(Numeric(12, 8))
+    efficiency = Column(Numeric(10, 2))
+    std_hank = Column(Numeric(12, 6))   # auto-calculated
 
     mill = relationship("Mill")
     department = relationship("Department")
-    allocated_count = relationship("CountMaster")
+    count = relationship("CountMaster", foreign_keys=[allocated_count_id])
 
 
 # -------------------------------------------------------
@@ -120,31 +118,33 @@ class DailyProduction(Base):
     department_id = Column(Integer, ForeignKey("department_master.id"), nullable=False)
     shift_id = Column(Integer, ForeignKey("shift_master.id"), nullable=False)
     machine_id = Column(Integer, ForeignKey("machine_master.id"), nullable=False)
+
     employee_id = Column(Integer, ForeignKey("employee_master.id"))
     count_id = Column(Integer, ForeignKey("count_master.id"))
 
-    # System calculated and user editable fields
-    worked_spindles = Column(Numeric(12, 6))
+    # Autofilled constants
     spdl_speed = Column(Numeric(10, 2))
     tpi = Column(Numeric(10, 2))
-    std_hank = Column(Numeric(12, 8))
+    std_hank = Column(Numeric(12, 6))
 
-    act_hank = Column(Numeric(10, 4))
+    conversion_factor = Column(Numeric(12, 6))  # NEW — needed for target calculation
+
+    # User inputs
+    worked_spindles = Column(Numeric(10, 2))
+    act_hank = Column(Numeric(10, 2))
     stop_min = Column(Numeric(10, 2))
+    prod_kgs = Column(Numeric(10, 2))
+    pne_bondas = Column(Numeric(10, 2))
+    waste = Column(Numeric(10, 2))
     run_hours = Column(Numeric(10, 2))
 
-    target_kgs = Column(Numeric(12, 4))
-    prod_kgs = Column(Numeric(12, 4))
-    pne_bondas = Column(Numeric(12, 4))
-    actual_prdn = Column(Numeric(12, 4))
+    remarks = Column(String)
 
-    waste = Column(Numeric(12, 4))
-    waste_percent = Column(Numeric(10, 2))
-
+    # Calculated
+    target_kgs = Column(Numeric(10, 2))
+    actual_prdn = Column(Numeric(10, 2))
     efficiency = Column(Numeric(10, 2))
     oee = Column(Numeric(10, 2))
-
-    remarks = Column(String)
 
     mill = relationship("Mill")
     department = relationship("Department")

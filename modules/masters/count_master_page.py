@@ -6,77 +6,117 @@ from database.models import Mill, CountMaster
 from utils.calc_engine import calc_conversion_factor
 
 
+# -------------------------------------------------------
+# COUNT MASTER PAGE
+# -------------------------------------------------------
 def count_master_page():
-    st.header("🧵 Count Master (Product Setup)")
-    st.info("Setup actual count, efficiency base, and conversion factor.")
+    st.title("🧵 Count Master")
 
     session: Session = next(get_session())
 
     mills = session.query(Mill).all()
     mill_map = {m.id: m.mill_name for m in mills}
 
-    # ---------------------------------------
-    # ADD NEW COUNT
-    # ---------------------------------------
-    with st.form("add_count"):
-        st.subheader("➕ Add Count")
+    st.info("""
+    • Add counts for each mill  
+    • Enter **Actual Count** and **Efficiency Base**  
+    • System will auto-calculate **Conversion Factor**  
+    • These values are used live in Daily Entry & Dashboard  
+    """)
 
+    # -------------------------------------------------------
+    # ADD NEW COUNT
+    # -------------------------------------------------------
+    st.subheader("➕ Add New Count")
+
+    with st.form("add_count_form"):
         col1, col2 = st.columns(2)
+
         with col1:
             mill_id = st.selectbox("Mill", mill_map.keys(), format_func=lambda x: mill_map[x])
-            count_name = st.text_input("Count Name")
+            count_name = st.text_input("Count Name (Ex: 60PSF, 40PC, 63PSFL)")
 
         with col2:
-            actual_count = st.number_input("Actual Count", step=0.01)
-            efficiency_base = st.number_input("Efficiency Base (%)", step=0.01)
+            actual_count = st.number_input("Actual Count", min_value=0.0, step=0.01)
+            efficiency_base = st.number_input("Efficiency Base (%)", min_value=0.0, step=0.01)
 
-        preview_factor = calc_conversion_factor(actual_count, efficiency_base)
-        st.write(f"📘 Conversion Factor: **{preview_factor}**")
+        # LIVE CALCULATION DISPLAY
+        conv_factor = calc_conversion_factor(actual_count, efficiency_base)
+        st.write(f"📘 **Calculated Conversion Factor:** `{conv_factor}`")
 
-        submit = st.form_submit_button("💾 Save")
+        submitted = st.form_submit_button("💾 Save Count")
 
-        if submit:
-            c = CountMaster(
-                mill_id=mill_id,
-                count_name=count_name,
-                actual_count=actual_count,
-                efficiency_base=efficiency_base,
-                conversion_factor=preview_factor
-            )
-            session.add(c)
-            session.commit()
-            st.success("✔ Count Added")
+        if submitted:
+            if not count_name.strip():
+                st.error("❌ Count name cannot be empty.")
+            else:
+                new_obj = CountMaster(
+                    mill_id=mill_id,
+                    count_name=count_name.strip(),
+                    actual_count=actual_count,
+                    efficiency_base=efficiency_base,
+                    conversion_factor=conv_factor
+                )
+                session.add(new_obj)
+                session.commit()
+                st.success("✅ Count saved successfully!")
 
     st.divider()
+
+    # -------------------------------------------------------
+    # LOAD EXISTING COUNTS
+    # -------------------------------------------------------
     st.subheader("📄 Existing Counts")
 
-    # LOAD LIST
-    counts = session.query(CountMaster).order_by(CountMaster.mill_id.asc()).all()
+    counts = (
+        session.query(CountMaster)
+        .order_by(CountMaster.mill_id.asc(), CountMaster.count_name.asc())
+        .all()
+    )
 
+    if not counts:
+        st.warning("No count records found.")
+        return
+
+    # Build DataFrame
     df = pd.DataFrame([
         {
             "id": c.id,
-            "Mill": mill_map[c.mill_id],
-            "Count": c.count_name,
-            "Actual Count": float(c.actual_count or 0),
-            "Efficiency Base": float(c.efficiency_base or 0),
-            "Conversion Factor": float(c.conversion_factor or 0),
+            "mill": c.mill.mill_name,
+            "count_name": c.count_name,
+            "actual_count": float(c.actual_count or 0),
+            "efficiency_base": float(c.efficiency_base or 0),
+            "conversion_factor": float(c.conversion_factor or 0)
         }
         for c in counts
     ])
 
-    edited = st.data_editor(df, use_container_width=True, hide_index=True)
+    st.caption("✏️ Modify Actual Count / Efficiency Base → Conversion Factor auto-updates.")
 
-    # SAVE UPDATE
-    if st.button("💾 Update Counts"):
-        for _, row in edited.iterrows():
+    edited_df = st.data_editor(
+        df,
+        hide_index=True,
+        use_container_width=True,
+        disabled=["id", "mill", "count_name", "conversion_factor"]
+    )
+
+    # -------------------------------------------------------
+    # SAVE UPDATED TABLE VALUES
+    # -------------------------------------------------------
+    if st.button("💾 Save Changes"):
+
+        for _, row in edited_df.iterrows():
             c = session.query(CountMaster).filter_by(id=row["id"]).first()
+            if c:
 
-            c.actual_count = row["Actual Count"]
-            c.efficiency_base = row["Efficiency Base"]
-            c.conversion_factor = calc_conversion_factor(
-                row["Actual Count"], row["Efficiency Base"]
-            )
+                c.actual_count = row["actual_count"]
+                c.efficiency_base = row["efficiency_base"]
+
+                # RECALCULATE conversion factor
+                c.conversion_factor = calc_conversion_factor(
+                    c.actual_count,
+                    c.efficiency_base
+                )
 
         session.commit()
-        st.success("✔ Updated successfully")
+        st.success("✅ Count records updated successfully!")
