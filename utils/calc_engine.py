@@ -25,7 +25,7 @@ def calc_std_hank(spdl_speed, tpi, efficiency):
     if tpi == 0:
         return 0.0
 
-    return round((spdl_speed / tpi) * 0.01587394 * eff, 4)
+    return round((spdl_speed / tpi) * 0.01587394 * eff, 2)
 
 
 # ----------------------------------------------------------
