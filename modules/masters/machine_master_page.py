@@ -4,8 +4,8 @@ from sqlalchemy.orm import Session
 from database.connection import get_session
 from database.models import Mill, Department, Machine, CountMaster
 from utils.calc_engine import (
-    calc_std_hank,
-    safe
+    safe_float,
+    calc_std_hank
 )
 
 
@@ -142,10 +142,10 @@ def machine_master_page():
 
             if machine:
                 # Editable fields
-                machine.spindles = safe(row["Spindles"])
-                machine.spdl_speed = safe(row["Speed"])
-                machine.tpi = safe(row["TPI"])
-                machine.efficiency = safe(row["Efficiency (%)"])
+                machine.spindles = safe_float(row["Spindles"])
+                machine.spdl_speed = safe_float(row["Speed"])
+                machine.tpi = safe_float(row["TPI"])
+                machine.efficiency = safe_float(row["Efficiency (%)"])
 
                 # Recalculate STD HANK
                 machine.std_hank = calc_std_hank(
