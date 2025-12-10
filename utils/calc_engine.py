@@ -10,7 +10,6 @@ def safe_float(v):
         return 0.0
 
 
-
 # ----------------------------------------------------------
 # MACHINE MASTER CALCULATIONS
 # ----------------------------------------------------------
@@ -27,7 +26,6 @@ def calc_std_hank(spdl_speed, tpi, efficiency):
         return 0.0
 
     return round((spdl_speed / tpi) * 0.01587394 * eff, 4)
-
 
 
 # ----------------------------------------------------------
@@ -47,7 +45,6 @@ def calc_conversion_factor(actual_count, eff_base):
     return round((1 / actual_count) * 0.4536 * eff, 2)
 
 
-
 # ----------------------------------------------------------
 # DAILY ENTRY CALCULATIONS
 # ----------------------------------------------------------
@@ -62,7 +59,6 @@ def calc_worked_spindles(spindles, stop_min):
     return round(spd - (stop_min * (spd / 480.0)), 2)
 
 
-
 def calc_target_kgs(std_hank, worked_spindles, run_hours, conversion_factor):
     """
     TARGET = STD_HANK * Worked_Spindles * Run_Hours * ConversionFactor
@@ -75,13 +71,11 @@ def calc_target_kgs(std_hank, worked_spindles, run_hours, conversion_factor):
     return round(std * wsp * hrs * cf, 4)
 
 
-
 def calc_actual_production(prod_kgs, pne_bondas):
     """
-    ACTUAL_PRODUCTION = Prod - Pneumafil
+    ACTUAL_PRODUCTION = Prod_kgs - Pne_bondas
     """
     return round(safe_float(prod_kgs) - safe_float(pne_bondas), 4)
-
 
 
 def calc_waste_percent(waste, prod_kgs):
@@ -97,7 +91,6 @@ def calc_waste_percent(waste, prod_kgs):
     return round((waste / prod) * 100, 2)
 
 
-
 def calc_efficiency(act_hank, std_hank):
     """
     Efficiency = (ACT_HANK / STD_HANK) * 100
@@ -111,7 +104,6 @@ def calc_efficiency(act_hank, std_hank):
     return round((act / std) * 100, 2)
 
 
-
 def calc_availability(run_hours, stop_min):
     """
     Availability = (Run Hours - StopMin/60) / Run Hours
@@ -123,7 +115,6 @@ def calc_availability(run_hours, stop_min):
         return 0.0
 
     return (run_hours - (stop_min / 60)) / run_hours
-
 
 
 def calc_oee(efficiency_percent, run_hours, stop_min):
