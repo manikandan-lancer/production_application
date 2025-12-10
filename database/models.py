@@ -1,99 +1,100 @@
 from sqlalchemy import (
-    Column, Integer, String, Date, Time, ForeignKey, Numeric
+    Column, Integer, String, Date, Time, Numeric, ForeignKey
 )
 from sqlalchemy.orm import relationship
 from database.connection import Base
 
 
-# -------------------------------------------------------
+# -----------------------------------------------------------
 # MILL MASTER
-# -------------------------------------------------------
+# -----------------------------------------------------------
 class Mill(Base):
     __tablename__ = "mill_master"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     mill_name = Column(String, nullable=False, unique=True)
 
 
-# -------------------------------------------------------
+# -----------------------------------------------------------
 # DEPARTMENT MASTER
-# -------------------------------------------------------
+# -----------------------------------------------------------
 class Department(Base):
     __tablename__ = "department_master"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     department_name = Column(String, nullable=False)
 
 
-# -------------------------------------------------------
+# -----------------------------------------------------------
 # SHIFT MASTER
-# -------------------------------------------------------
+# -----------------------------------------------------------
 class Shift(Base):
     __tablename__ = "shift_master"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     shift_name = Column(String, nullable=False)
     start_time = Column(Time, nullable=False)
     end_time = Column(Time, nullable=False)
-
     total_hours = Column(Numeric(10, 2), default=8.00)
 
 
-# -------------------------------------------------------
+# -----------------------------------------------------------
 # COUNT MASTER
-# -------------------------------------------------------
+# -----------------------------------------------------------
 class CountMaster(Base):
     __tablename__ = "count_master"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     mill_id = Column(Integer, ForeignKey("mill_master.id"), nullable=False)
 
     count_name = Column(String, nullable=False)
 
-    # NEW CALC FIELDS
-    actual_count = Column(Numeric(10, 4))       # user entered actual count
-    efficiency_base = Column(Numeric(10, 2))    # %
-    conversion_factor = Column(Numeric(12, 6))  # auto computed
+    # User Inputs
+    actual_count = Column(Numeric(10, 4))
+    efficiency_base = Column(Numeric(10, 2))
+
+    # Auto computed
+    conversion_factor = Column(Numeric(12, 6))
 
     mill = relationship("Mill")
 
 
-# -------------------------------------------------------
+# -----------------------------------------------------------
 # MACHINE MASTER
-# -------------------------------------------------------
+# -----------------------------------------------------------
 class Machine(Base):
     __tablename__ = "machine_master"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
 
     mill_id = Column(Integer, ForeignKey("mill_master.id"), nullable=False)
     department_id = Column(Integer, ForeignKey("department_master.id"), nullable=False)
 
     machine_name = Column(String, nullable=False)
 
-    spindles = Column(Integer)
+    spindles = Column(Integer, nullable=False)
+
+    # Master constants
+    spdl_speed = Column(Numeric(10, 2))
+    tpi = Column(Numeric(10, 2))
+    efficiency = Column(Numeric(10, 2))
+
+    std_hank = Column(Numeric(12, 6))   # auto computed
 
     allocated_count_id = Column(Integer, ForeignKey("count_master.id"))
-
-    # NEW CONSTANT FIELDS
-    spdl_speed = Column(Numeric(10, 2))    # constant
-    tpi = Column(Numeric(10, 2))           # constant
-    efficiency = Column(Numeric(10, 2))    # % entered manually
-    std_hank = Column(Numeric(12, 6))      # auto computed from speed/tpi/eff
 
     mill = relationship("Mill")
     department = relationship("Department")
     allocated_count = relationship("CountMaster")
 
 
-# -------------------------------------------------------
+# -----------------------------------------------------------
 # EMPLOYEE MASTER
-# -------------------------------------------------------
+# -----------------------------------------------------------
 class Employee(Base):
     __tablename__ = "employee_master"
 
-    id = Column(Integer, primary_key=True, index=True)
-
+    id = Column(Integer, primary_key=True)
     employee_no = Column(String, nullable=False)
     employee_name = Column(String, nullable=False)
     designation = Column(String)
@@ -102,13 +103,13 @@ class Employee(Base):
     mill = relationship("Mill")
 
 
-# -------------------------------------------------------
-# DAILY PRODUCTION ENTRY
-# -------------------------------------------------------
+# -----------------------------------------------------------
+# DAILY PRODUCTION (SNAPSHOT MODEL)
+# -----------------------------------------------------------
 class DailyProduction(Base):
     __tablename__ = "daily_production"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
 
     date = Column(Date, nullable=False)
 
@@ -119,29 +120,39 @@ class DailyProduction(Base):
     employee_id = Column(Integer, ForeignKey("employee_master.id"))
     count_id = Column(Integer, ForeignKey("count_master.id"))
 
-    # Autofilled fields
+    # --------------------------
+    # SNAPSHOT FIELDS (fixed)
+    # --------------------------
+    spindles = Column(Integer)
     spdl_speed = Column(Numeric(10, 2))
     tpi = Column(Numeric(10, 2))
     std_hank = Column(Numeric(12, 6))
-    spindles = Column(Integer)
+    conversion_factor = Column(Numeric(12, 6))
 
-    # User input
-    act_hank = Column(Numeric(10, 2))
+    # --------------------------
+    # USER INPUT FIELDS
+    # --------------------------
+    act_hank = Column(Numeric(10, 4))
     stop_min = Column(Numeric(10, 2))
-    run_hours = Column(Numeric(10, 2))
-    pne_bondas = Column(Numeric(10, 2))
     prod_kgs = Column(Numeric(10, 2))
+    pne_bondas = Column(Numeric(10, 2))
+    waste = Column(Numeric(10, 2))
+    run_hours = Column(Numeric(10, 2))
+
     remarks = Column(String)
 
-    # Calculated
-    worked_spindles = Column(Numeric(12, 4))
-    target_kgs = Column(Numeric(12, 4))
-    prodsn_kgs = Column(Numeric(12, 4))          # ConversionFactor × Spindles × Act_Hank
-    actual_prdn = Column(Numeric(12, 4))
+    # --------------------------
+    # CALCULATED FIELDS
+    # --------------------------
+    worked_spindles = Column(Numeric(10, 4))
+    target_kgs = Column(Numeric(12, 6))
+    prodsn_kgs = Column(Numeric(10, 2))
+    actual_prdn = Column(Numeric(10, 2))
     waste_percent = Column(Numeric(10, 2))
     efficiency = Column(Numeric(10, 2))
     oee = Column(Numeric(10, 2))
 
+    # RELATIONSHIPS
     mill = relationship("Mill")
     department = relationship("Department")
     shift = relationship("Shift")
