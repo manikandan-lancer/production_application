@@ -4,9 +4,10 @@ from sqlalchemy.orm import Session
 from database.connection import get_session
 from database.models import Mill, CountMaster
 from utils.calc_engine import (
-    calc_conversion_factor,
-    safe
+    safe_float,
+    calc_conversion_factor
 )
+
 
 
 # -------------------------------------------------------
@@ -109,8 +110,8 @@ def count_master_page():
             c = session.query(CountMaster).filter_by(id=row["ID"]).first()
             if c:
 
-                c.actual_count = safe(row["Actual Count"])
-                c.efficiency_base = safe(row["Efficiency Base (%)"])
+                c.actual_count = safe_float(row["Actual Count"])
+                c.efficiency_base = safe_float(row["Efficiency Base (%)"])
                 c.conversion_factor = calc_conversion_factor(
                     c.actual_count,
                     c.efficiency_base
