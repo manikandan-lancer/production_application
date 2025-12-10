@@ -1,45 +1,30 @@
-# ----------------------------------------------------------
-# CALCULATION ENGINE (Shared across all modules)
-# ----------------------------------------------------------
-
-def safe_float(v):
-    """Safely convert any input to float."""
+def safe(v):
     try:
         return float(v or 0)
     except:
         return 0.0
 
 
-# ----------------------------------------------------------
-# COUNT MASTER CALCULATIONS
-# ----------------------------------------------------------
+# ----------------------------
+# COUNT MASTER
+# ----------------------------
+def calc_conversion_factor(actual_count, efficiency_base):
+    ac = safe(actual_count)
+    eff = safe(efficiency_base) / 100
 
-def calc_conversion_factor(actual_count, eff_base):
-    """
-    Conversion Factor = (1 / actual_count) * 0.4536 * (eff_base / 100)
-    """
-
-    actual_count = safe_float(actual_count)
-    eff = safe_float(eff_base) / 100
-
-    if actual_count == 0:
+    if ac == 0:
         return 0.0
 
-    return round((1 / actual_count) * 0.4536 * eff, 6)
+    return round((1 / ac) * 0.4536 * eff, 6)
 
 
-# ----------------------------------------------------------
-# MACHINE MASTER CALCULATIONS
-# ----------------------------------------------------------
-
+# ----------------------------
+# MACHINE MASTER
+# ----------------------------
 def calc_std_hank(spdl_speed, tpi, efficiency):
-    """
-    STD_HANK = (Speed / TPI) * 0.01587394 * (Efficiency% / 100)
-    """
-
-    spd = safe_float(spdl_speed)
-    tpi = safe_float(tpi)
-    eff = safe_float(efficiency) / 100
+    spd = safe(spdl_speed)
+    tpi = safe(tpi)
+    eff = safe(efficiency) / 100
 
     if tpi == 0:
         return 0.0
@@ -47,87 +32,38 @@ def calc_std_hank(spdl_speed, tpi, efficiency):
     return round((spd / tpi) * 0.01587394 * eff, 6)
 
 
-# ----------------------------------------------------------
-# DAILY ENTRY CALCULATIONS
-# ----------------------------------------------------------
-
+# ----------------------------
+# DAILY ENTRY
+# ----------------------------
 def calc_worked_spindles(spindles, stop_min):
-    """
-    Worked Spindles = Spindles - StopMin * (Spindles / 480)
-    """
-
-    sp = safe_float(spindles)
-    sm = safe_float(stop_min)
-
-    return round(sp - sm * (sp / 480), 4)
+    sp = safe(spindles)
+    st = safe(stop_min)
+    return round(sp - (st * (sp / 480)), 4)
 
 
-def calc_actual_production(prod_kgs, pne_bondas):
-    """Actual Production = Prod Kgs - Pneumafil"""
-    return round(safe_float(prod_kgs) - safe_float(pne_bondas), 4)
+def calc_target_kgs(conv_factor, spindles, std_hank):
+    return round(safe(conv_factor) * safe(spindles) * safe(std_hank), 4)
 
 
-def calc_waste_percent(pne_bondas, prod_kgs):
-    """Waste % = (Pneumafil / Production) * 100"""
+def calc_prodn_kgs(conv_factor, spindles, act_hank):
+    return round(safe(conv_factor) * safe(spindles) * safe(act_hank), 4)
 
-    pne = safe_float(pne_bondas)
-    prod = safe_float(prod_kgs)
 
-    if prod == 0:
+def calc_actual_prdn(prod_kgs, pne):
+    return round(safe(prod_kgs) - safe(pne), 4)
+
+
+def calc_waste_percent(pne, prod_kgs):
+    if safe(prod_kgs) == 0:
         return 0.0
-
-    return round((pne / prod) * 100, 2)
+    return round((safe(pne) / safe(prod_kgs)) * 100, 2)
 
 
 def calc_efficiency(act_hank, std_hank):
-    """Efficiency = (ACT_HANK / STD_HANK) * 100"""
-
-    act = safe_float(act_hank)
-    std = safe_float(std_hank)
-
-    if std == 0:
+    if safe(std_hank) == 0:
         return 0.0
-
-    return round((act / std) * 100, 2)
-
-
-def calc_availability(run_hours, stop_min):
-    """
-    Availability = (RunHours - StopMin/60) / RunHours
-    """
-
-    hrs = safe_float(run_hours)
-    sm = safe_float(stop_min)
-
-    if hrs == 0:
-        return 0.0
-
-    return (hrs - (sm / 60)) / hrs
+    return round((safe(act_hank) / safe(std_hank)) * 100, 2)
 
 
-def calc_oee(efficiency_percent, run_hours, stop_min):
-    """
-    OEE = Availability × (Efficiency% / 100) × 100
-    """
-
-    eff = safe_float(efficiency_percent) / 100
-    availability = calc_availability(run_hours, stop_min)
-
-    return round(availability * eff * 100, 2)
-
-
-# ----------------------------------------------------------
-# TARGET CALCULATION
-# ----------------------------------------------------------
-
-def calc_target_kgs(std_hank, spindles, run_hours, conversion_factor):
-    """
-    TARGET KG = ConversionFactor × Spindles × STD_HANK × RunHours
-    """
-
-    std = safe_float(std_hank)
-    sp = safe_float(spindles)
-    hrs = safe_float(run_hours)
-    cf = safe_float(conversion_factor)
-
-    return round(cf * sp * std * hrs, 4)
+def calc_oee(efficiency):
+    return round(safe(efficiency), 2)

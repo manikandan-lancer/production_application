@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 from sqlalchemy.orm import Session
-
 from database.connection import get_session
 from database.models import (
     Mill, Department, Shift, Machine, Employee,
@@ -9,14 +8,13 @@ from database.models import (
 )
 
 from utils.calc_engine import (
-    calc_std_hank,
-    calc_conversion_factor,
+    calc_worked_spindles,
     calc_actual_production,
     calc_efficiency,
     calc_oee,
-    calc_waste_percent,
     calc_target_kgs,
-    calc_worked_spindles
+    calc_waste_percent,
+    safe
 )
 
 
@@ -29,24 +27,24 @@ def daily_entry_page():
     session: Session = next(get_session())
 
     # -------------------------------------------------------
-    # TOP FILTER PANEL
+    # TOP FILTERS
     # -------------------------------------------------------
-    colA, colB, colC, colD = st.columns(4)
+    col1, col2, col3, col4 = st.columns(4)
 
-    with colA:
+    with col1:
         date = st.date_input("Date")
 
-    with colB:
+    with col2:
         mills = session.query(Mill).all()
         mill_map = {m.id: m.mill_name for m in mills}
         mill_id = st.selectbox("Mill", mill_map.keys(), format_func=lambda x: mill_map[x])
 
-    with colC:
+    with col3:
         depts = session.query(Department).all()
         dept_map = {d.id: d.department_name for d in depts}
         dept_id = st.selectbox("Department", dept_map.keys(), format_func=lambda x: dept_map[x])
 
-    with colD:
+    with col4:
         shifts = session.query(Shift).all()
         shift_map = {s.id: s.shift_name for s in shifts}
         shift_id = st.selectbox("Shift", shift_map.keys(), format_func=lambda x: shift_map[x])
@@ -54,7 +52,7 @@ def daily_entry_page():
     st.divider()
 
     # -------------------------------------------------------
-    # LOAD MACHINES FOR SELECTION
+    # LOAD MACHINE LIST
     # -------------------------------------------------------
     machines = session.query(Machine).filter(
         Machine.mill_id == mill_id,
@@ -62,159 +60,198 @@ def daily_entry_page():
     ).order_by(Machine.machine_name.asc()).all()
 
     if not machines:
-        st.error("No machines found for selected Mill & Department.")
+        st.error("No machines found for this Mill + Department")
         return
 
-    # Always fresh data — No old rows should be loaded
-    st.info("Fresh entry sheet generated. No stored values are preloaded.")
+    # -------------------------------------------------------
+    # CHECK IF DATA EXISTS
+    # -------------------------------------------------------
+    saved = session.query(DailyProduction).filter_by(
+        date=date,
+        mill_id=mill_id,
+        department_id=dept_id,
+        shift_id=shift_id
+    ).all()
 
     # -------------------------------------------------------
-    # BUILD INITIAL DATAFRAME
+    # LOAD SAVED DATA
     # -------------------------------------------------------
-    rows = []
-    for m in machines:
-        count_obj = session.query(CountMaster).filter(
-            CountMaster.id == m.allocated_count_id
-        ).first()
+    if saved:
+        st.success("Loaded existing saved records.")
 
-        cf = count_obj.conversion_factor if count_obj else 0
+        df = pd.DataFrame([
+            {
+                "machine_id": r.machine_id,
+                "machine": r.machine.machine_name,
 
-        rows.append({
-            "machine_id": m.id,
-            "machine_name": m.machine_name,
+                "count_id": r.count_id,
+                "count": r.count.count_name if r.count else "",
 
-            "count_id": count_obj.id if count_obj else None,
-            "count_name": count_obj.count_name if count_obj else "",
+                "employee_no": r.employee.employee_no if r.employee else "",
+                "employee_name": r.employee.employee_name if r.employee else "",
 
-            "spindles": m.spindles,
-            "spdl_speed": float(m.spdl_speed or 0),
-            "tpi": float(m.tpi or 0),
-            "std_hank": float(m.std_hank or 0),
+                "spdl_speed": float(r.spdl_speed or 0),
+                "tpi": float(r.tpi or 0),
+                "std_hank": float(r.std_hank or 0),
 
-            "conv_factor": float(cf or 0),
+                "stop_min": float(r.stop_min or 0),
+                "spindles": float(r.machine.spindles or 0),
 
-            "employee_no": "",
-            "employee_name": "",
+                "worked_spindles": float(r.worked_spindles or 0),
 
-            "act_hank": 0.0,
-            "stop_min": 0.0,
-            "run_hours": 0.0,
+                "prod_kgs": float(r.prod_kgs or 0),
+                "pne_bondas": float(r.pne_bondas or 0),
+                "actual_prdn": float(r.actual_prdn or 0),
+                "waste": float(r.waste or 0),
+                "waste_percent": float(r.waste_percent or 0),
 
-            "worked_spindles": 0.0,
-            "target_kgs": 0.0,
+                "run_hours": float(r.run_hours or 0),
+                "act_hank": float(r.act_hank or 0),
 
-            "prod_kgs": 0.0,
-            "pne_bondas": 0.0,
+                "target_kgs": float(r.target_kgs or 0),
+                "efficiency": float(r.efficiency or 0),
+                "oee": float(r.oee or 0),
 
-            "actual_prdn": 0.0,
-            "waste": 0.0,
-            "waste_percent": 0.0,
-
-            "efficiency": 0.0,
-            "oee": 0.0,
-            "remarks": ""
-        })
-
-    df = pd.DataFrame(rows)
+                "remarks": r.remarks or ""
+            }
+            for r in saved
+        ])
 
     # -------------------------------------------------------
-    # DISABLED COLUMNS
+    # GENERATE NEW RECORDS
+    # -------------------------------------------------------
+    else:
+        st.info("Generating fresh entry sheet...")
+
+        rows = []
+        for m in machines:
+            count_obj = session.query(CountMaster).filter_by(id=m.allocated_count_id).first()
+
+            rows.append({
+                "machine_id": m.id,
+                "machine": m.machine_name,
+
+                "count_id": count_obj.id if count_obj else None,
+                "count": count_obj.count_name if count_obj else "",
+
+                "employee_no": "",
+                "employee_name": "",
+
+                "spdl_speed": float(m.spdl_speed or 0),
+                "tpi": float(m.tpi or 0),
+                "std_hank": float(m.std_hank or 0),
+
+                "stop_min": 0.0,
+                "spindles": float(m.spindles or 0),
+
+                "worked_spindles": 0.0,
+
+                "prod_kgs": 0.0,
+                "pne_bondas": 0.0,
+                "actual_prdn": 0.0,
+                "waste": 0.0,
+                "waste_percent": 0.0,
+
+                "run_hours": 8.0,   # default shift hours
+                "act_hank": 0.0,
+
+                "target_kgs": 0.0,
+                "efficiency": 0.0,
+                "oee": 0.0,
+
+                "remarks": ""
+            })
+
+        df = pd.DataFrame(rows)
+
+    # -------------------------------------------------------
+    # AUTO-FILL EMPLOYEE NAME
+    # -------------------------------------------------------
+    for idx, row in df.iterrows():
+        if str(row["employee_no"]).strip():
+            emp = session.query(Employee).filter_by(employee_no=row["employee_no"]).first()
+            if emp:
+                df.at[idx, "employee_name"] = emp.employee_name
+
+    # -------------------------------------------------------
+    # READ-ONLY FIELDS
     # -------------------------------------------------------
     readonly = [
-        "machine_id", "machine_name",
-        "count_id", "count_name",
-        "spindles", "spdl_speed", "tpi",
-        "std_hank", "conv_factor",
+        "machine_id", "machine",
+        "count_id", "count",
         "employee_name",
+        "spdl_speed", "tpi", "std_hank",
         "worked_spindles",
-        "target_kgs",
-        "actual_prdn",
-        "efficiency",
-        "oee",
-        "waste_percent"
+        "actual_prdn", "waste_percent",
+        "target_kgs", "efficiency", "oee"
     ]
 
     edited_df = st.data_editor(
         df,
         disabled=readonly,
-        use_container_width=True,
-        column_config={
-            "count_name": st.column_config.TextColumn(disabled=True)
-        }
+        use_container_width=True
     )
 
     # -------------------------------------------------------
-    # LIVE CALCULATIONS ROW-BY-ROW
+    # LIVE CALCULATIONS LOOP
     # -------------------------------------------------------
-    for idx, r in edited_df.iterrows():
+    for idx, row in edited_df.iterrows():
 
-        # Employee Auto-fill
-        if r["employee_no"]:
-            emp = session.query(Employee).filter(
-                Employee.employee_no == str(r["employee_no"]).strip()
-            ).first()
-            if emp:
-                edited_df.at[idx, "employee_name"] = emp.employee_name
+        sp = safe(row["spindles"])
+        stop = safe(row["stop_min"])
+        run_hours = safe(row["run_hours"])
+        act_hank = safe(row["act_hank"])
+
+        # LOOKUP conversion factor
+        count_obj = session.query(CountMaster).filter_by(id=row["count_id"]).first()
+        conversion_factor = safe(count_obj.conversion_factor) if count_obj else 0
 
         # Worked Spindles
-        edited_df.at[idx, "worked_spindles"] = calc_worked_spindles(
-            r["spindles"], r["stop_min"]
-        )
+        ws = calc_worked_spindles(sp, stop)
+        edited_df.at[idx, "worked_spindles"] = ws
 
         # Actual Production
-        edited_df.at[idx, "actual_prdn"] = calc_actual_production(
-            r["prod_kgs"], r["pne_bondas"]
-        )
-
-        # Waste %
-        edited_df.at[idx, "waste_percent"] = calc_waste_percent(
-            r["waste"], r["prod_kgs"]
-        )
-
-        # Efficiency
-        edited_df.at[idx, "efficiency"] = calc_efficiency(
-            r["act_hank"], r["std_hank"]
-        )
-
-        # OEE
-        edited_df.at[idx, "oee"] = calc_oee(
-            edited_df.at[idx, "efficiency"],
-            r["run_hours"],
-            r["stop_min"]
-        )
+        actual = calc_actual_production(row["prod_kgs"], row["pne_bondas"])
+        edited_df.at[idx, "actual_prdn"] = actual
 
         # Target Kgs
-        edited_df.at[idx, "target_kgs"] = calc_target_kgs(
-            r["std_hank"],
-            edited_df.at[idx, "worked_spindles"],
-            r["run_hours"],
-            r["conv_factor"]
-        )
+        target = calc_target_kgs(row["std_hank"], ws, run_hours, conversion_factor)
+        edited_df.at[idx, "target_kgs"] = target
+
+        # Waste %
+        waste_percent = calc_waste_percent(row["waste"], row["prod_kgs"])
+        edited_df.at[idx, "waste_percent"] = waste_percent
+
+        # Efficiency
+        eff = calc_efficiency(act_hank, row["std_hank"])
+        edited_df.at[idx, "efficiency"] = eff
+
+        # OEE
+        oee_val = calc_oee(eff, run_hours, stop)
+        edited_df.at[idx, "oee"] = oee_val
 
     # -------------------------------------------------------
-    # SAVE TO DATABASE
+    # SAVE BUTTON
     # -------------------------------------------------------
     if st.button("💾 Save Daily Production"):
 
-        # delete old records for the date-shift selection
-        session.query(DailyProduction).filter(
-            DailyProduction.date == date,
-            DailyProduction.mill_id == mill_id,
-            DailyProduction.department_id == dept_id,
-            DailyProduction.shift_id == shift_id
+        # Remove any old saved rows
+        session.query(DailyProduction).filter_by(
+            date=date,
+            mill_id=mill_id,
+            department_id=dept_id,
+            shift_id=shift_id
         ).delete()
         session.commit()
 
-        # insert new
+        # INSERT NEW ROWS
         for _, r in edited_df.iterrows():
 
             emp = None
             if r["employee_no"]:
-                emp = session.query(Employee).filter(
-                    Employee.employee_no == str(r["employee_no"])
-                ).first()
+                emp = session.query(Employee).filter_by(employee_no=r["employee_no"]).first()
 
-            entry = DailyProduction(
+            new_entry = DailyProduction(
                 date=date,
                 mill_id=mill_id,
                 department_id=dept_id,
@@ -223,27 +260,30 @@ def daily_entry_page():
                 employee_id=emp.id if emp else None,
                 count_id=r["count_id"],
 
-                worked_spindles=r["worked_spindles"],
-                spdl_speed=r["spdl_speed"],
-                tpi=r["tpi"],
-                std_hank=r["std_hank"],
+                worked_spindles=safe(r["worked_spindles"]),
+                spdl_speed=safe(r["spdl_speed"]),
+                tpi=safe(r["tpi"]),
+                std_hank=safe(r["std_hank"]),
+                act_hank=safe(r["act_hank"]),
 
-                act_hank=r["act_hank"],
-                stop_min=r["stop_min"],
-                waste_percent=calc_waste_percent(r["waste"], r["prod_kgs"]),
-                run_hours=r["run_hours"],
-                target_kgs=r["target_kgs"],
+                stop_min=safe(r["stop_min"]),
+                run_hours=safe(r["run_hours"]),
 
-                prod_kgs=r["prod_kgs"],
-                pne_bondas=r["pne_bondas"],
-                actual_prdn=r["actual_prdn"],
-                waste=r["waste"],
-                efficiency=r["efficiency"],
-                oee=r["oee"],
+                target_kgs=safe(r["target_kgs"]),
+                prod_kgs=safe(r["prod_kgs"]),
+                pne_bondas=safe(r["pne_bondas"]),
+                actual_prdn=safe(r["actual_prdn"]),
+
+                waste=safe(r["waste"]),
+                waste_percent=safe(r["waste_percent"]),
+
+                efficiency=safe(r["efficiency"]),
+                oee=safe(r["oee"]),
+
                 remarks=r["remarks"]
             )
 
-            session.add(entry)
+            session.add(new_entry)
 
         session.commit()
         st.success("✅ Daily Production Saved Successfully!")

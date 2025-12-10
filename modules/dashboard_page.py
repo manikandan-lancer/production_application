@@ -1,17 +1,13 @@
 import streamlit as st
 import pandas as pd
-
 from sqlalchemy.orm import Session
 from database.connection import get_session
-
 from database.models import (
     Mill, Department, Shift, Machine, Employee,
     CountMaster, DailyProduction
 )
 
-from utils.calc_engine import (
-    calc_waste_percent
-)
+from utils.calc_engine import safe
 
 
 # -------------------------------------------------------
@@ -33,7 +29,6 @@ def dashboard_page():
     with col2:
         mills = session.query(Mill).all()
         mill_map = {m.id: m.mill_name for m in mills}
-
         mill_id = st.selectbox(
             "Mill",
             [None] + list(mill_map.keys()),
@@ -43,7 +38,6 @@ def dashboard_page():
     with col3:
         depts = session.query(Department).all()
         dept_map = {d.id: d.department_name for d in depts}
-
         dept_id = st.selectbox(
             "Department",
             [None] + list(dept_map.keys()),
@@ -53,7 +47,6 @@ def dashboard_page():
     with col4:
         shifts = session.query(Shift).all()
         shift_map = {s.id: s.shift_name for s in shifts}
-
         shift_id = st.selectbox(
             "Shift",
             [None] + list(shift_map.keys()),
@@ -65,7 +58,6 @@ def dashboard_page():
     with colA:
         employees = session.query(Employee).all()
         emp_map = {e.id: f"{e.employee_no} - {e.employee_name}" for e in employees}
-
         emp_id = st.selectbox(
             "Employee",
             [None] + list(emp_map.keys()),
@@ -75,7 +67,6 @@ def dashboard_page():
     with colB:
         counts = session.query(CountMaster).all()
         count_map = {c.id: c.count_name for c in counts}
-
         count_id = st.selectbox(
             "Count",
             [None] + list(count_map.keys()),
@@ -109,14 +100,13 @@ def dashboard_page():
     records = query.all()
 
     if not records:
-        st.warning("No records found for selected filters.")
+        st.warning("No records found for the selected filters.")
         return
 
     # -------------------------------------------------------
-    # BUILD DATAFRAME
+    # BUILD DISPLAY TABLE
     # -------------------------------------------------------
     rows = []
-
     for r in records:
 
         machine = session.query(Machine).filter_by(id=r.machine_id).first()
@@ -124,35 +114,34 @@ def dashboard_page():
         count = session.query(CountMaster).filter_by(id=r.count_id).first() if r.count_id else None
         shift = session.query(Shift).filter_by(id=r.shift_id).first()
 
-        waste_percent = calc_waste_percent(r.waste, r.prod_kgs)
-
         rows.append({
             "Date": r.date,
-            "Shift": shift.shift_name if shift else "",
             "Mill": mill_map.get(r.mill_id, ""),
             "Department": dept_map.get(r.department_id, ""),
+            "Shift": shift.shift_name if shift else "",
             "Machine": machine.machine_name if machine else "",
             "Count": count.count_name if count else "",
             "Employee": emp.employee_name if emp else "",
 
-            "Spdl Speed": float(r.spdl_speed or 0),
-            "TPI": float(r.tpi or 0),
-            "STD Hank": float(r.std_hank or 0),
-            "ACT Hank": float(r.act_hank or 0),
+            "Spdl Speed": safe(r.spdl_speed),
+            "TPI": safe(r.tpi),
+            "STD Hank": safe(r.std_hank),
+            "ACT Hank": safe(r.act_hank),
 
-            "Stop Min": float(r.stop_min or 0),
-            "Worked Spindles": float(r.worked_spindles or 0),
+            "Stop Min": safe(r.stop_min),
+            "Run Hours": safe(r.run_hours),
 
-            "Target Kgs": float(r.target_kgs or 0),
-            "Prod Kgs": float(r.prod_kgs or 0),
-            "Pne Bondas": float(r.pne_bondas or 0),
+            "Worked Spindles": safe(r.worked_spindles),
+            "Target Kgs": safe(r.target_kgs),
 
-            "Actual Production": float(r.actual_prdn or 0),
-            "Waste": float(r.waste or 0),
-            "Waste %": waste_percent,
+            "Prod Kgs": safe(r.prod_kgs),
+            "Pne Bondas": safe(r.pne_bondas),
+            "Waste": safe(r.waste),
+            "Waste %": safe(r.waste_percent),
 
-            "Efficiency %": float(r.efficiency or 0),
-            "OEE %": float(r.oee or 0),
+            "Actual Production": safe(r.actual_prdn),
+            "Efficiency %": safe(r.efficiency),
+            "OEE %": safe(r.oee),
 
             "Remarks": r.remarks or ""
         })
@@ -166,38 +155,38 @@ def dashboard_page():
     st.dataframe(df, use_container_width=True)
 
     # -------------------------------------------------------
-    # SUMMARY KPI BAR
+    # SUMMARY SECTION
     # -------------------------------------------------------
-    st.subheader("📌 Summary")
+    st.subheader("📌 Summary Overview")
 
     col1, col2, col3, col4, col5 = st.columns(5)
 
     col1.metric("Total Prod (Kgs)", round(df["Prod Kgs"].sum(), 2))
-    col2.metric("Total Actual Production", round(df["Actual Production"].sum(), 2))
+    col2.metric("Actual Production", round(df["Actual Production"].sum(), 2))
     col3.metric("Total Waste", round(df["Waste"].sum(), 2))
     col4.metric("Avg Efficiency %", round(df["Efficiency %"].mean(), 2))
     col5.metric("Avg OEE %", round(df["OEE %"].mean(), 2))
 
     # -------------------------------------------------------
-    # EXPORT SECTION
+    # EXPORT
     # -------------------------------------------------------
     st.subheader("📥 Export Data")
 
     csv = df.to_csv(index=False).encode("utf-8")
     st.download_button(
-        label="Download CSV",
+        "Download CSV",
         data=csv,
         file_name="production_dashboard.csv",
         mime="text/csv"
     )
 
-    excel_file = "production_dashboard.xlsx"
+    excel_file = "dashboard_export.xlsx"
     with pd.ExcelWriter(excel_file, engine="openpyxl") as writer:
-        df.to_excel(writer, index=False, sheet_name="Dashboard")
+        df.to_excel(writer, index=False, sheet_name="DashboardData")
 
     with open(excel_file, "rb") as f:
         st.download_button(
-            label="Download Excel",
+            "Download Excel",
             data=f,
             file_name="production_dashboard.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"

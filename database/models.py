@@ -50,12 +50,10 @@ class CountMaster(Base):
 
     count_name = Column(String, nullable=False)
 
-    # User-entered fields
-    actual_count = Column(Numeric(10, 4))
-    efficiency_base = Column(Numeric(10, 2))
-
-    # Auto-calculated field
-    conversion_factor = Column(Numeric(12, 6))
+    # NEW CALC FIELDS
+    actual_count = Column(Numeric(10, 4))       # user entered actual count
+    efficiency_base = Column(Numeric(10, 2))    # %
+    conversion_factor = Column(Numeric(12, 6))  # auto computed
 
     mill = relationship("Mill")
 
@@ -75,17 +73,17 @@ class Machine(Base):
 
     spindles = Column(Integer)
 
-    # Machine is linked to exactly one count
     allocated_count_id = Column(Integer, ForeignKey("count_master.id"))
 
-    spdl_speed = Column(Numeric(10, 2))
-    tpi = Column(Numeric(10, 2))
-    efficiency = Column(Numeric(10, 2))
-    std_hank = Column(Numeric(12, 6))   # auto-calculated
+    # NEW CONSTANT FIELDS
+    spdl_speed = Column(Numeric(10, 2))    # constant
+    tpi = Column(Numeric(10, 2))           # constant
+    efficiency = Column(Numeric(10, 2))    # % entered manually
+    std_hank = Column(Numeric(12, 6))      # auto computed from speed/tpi/eff
 
     mill = relationship("Mill")
     department = relationship("Department")
-    count = relationship("CountMaster", foreign_keys=[allocated_count_id])
+    allocated_count = relationship("CountMaster")
 
 
 # -------------------------------------------------------
@@ -118,32 +116,29 @@ class DailyProduction(Base):
     department_id = Column(Integer, ForeignKey("department_master.id"), nullable=False)
     shift_id = Column(Integer, ForeignKey("shift_master.id"), nullable=False)
     machine_id = Column(Integer, ForeignKey("machine_master.id"), nullable=False)
-
     employee_id = Column(Integer, ForeignKey("employee_master.id"))
     count_id = Column(Integer, ForeignKey("count_master.id"))
 
-    # Autofilled constants
+    # Autofilled fields
     spdl_speed = Column(Numeric(10, 2))
     tpi = Column(Numeric(10, 2))
     std_hank = Column(Numeric(12, 6))
+    spindles = Column(Integer)
 
-    conversion_factor = Column(Numeric(12, 6))  # NEW — needed for target calculation
-
-    # User inputs
-    worked_spindles = Column(Numeric(10, 2))
+    # User input
     act_hank = Column(Numeric(10, 2))
     stop_min = Column(Numeric(10, 2))
-    prod_kgs = Column(Numeric(10, 2))
-    pne_bondas = Column(Numeric(10, 2))
-    waste = Column(Numeric(10, 2))
-    waste_percent = Column(Numeric(10, 2))   # NEW
     run_hours = Column(Numeric(10, 2))
-
+    pne_bondas = Column(Numeric(10, 2))
+    prod_kgs = Column(Numeric(10, 2))
     remarks = Column(String)
 
     # Calculated
-    target_kgs = Column(Numeric(10, 2))
-    actual_prdn = Column(Numeric(10, 2))
+    worked_spindles = Column(Numeric(12, 4))
+    target_kgs = Column(Numeric(12, 4))
+    prodsn_kgs = Column(Numeric(12, 4))          # ConversionFactor × Spindles × Act_Hank
+    actual_prdn = Column(Numeric(12, 4))
+    waste_percent = Column(Numeric(10, 2))
     efficiency = Column(Numeric(10, 2))
     oee = Column(Numeric(10, 2))
 
