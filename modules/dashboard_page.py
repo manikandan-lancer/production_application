@@ -7,7 +7,7 @@ from database.models import (
     CountMaster, DailyProduction
 )
 
-from utils.calc_engine import safe
+from utils.calc_engine import safe_float
 
 
 # -------------------------------------------------------
@@ -123,25 +123,25 @@ def dashboard_page():
             "Count": count.count_name if count else "",
             "Employee": emp.employee_name if emp else "",
 
-            "Spdl Speed": safe(r.spdl_speed),
-            "TPI": safe(r.tpi),
-            "STD Hank": safe(r.std_hank),
-            "ACT Hank": safe(r.act_hank),
+            "Spdl Speed": safe_float(r.spdl_speed),
+            "TPI": safe_float(r.tpi),
+            "STD Hank": safe_float(r.std_hank),
+            "ACT Hank": safe_float(r.act_hank),
 
-            "Stop Min": safe(r.stop_min),
-            "Run Hours": safe(r.run_hours),
+            "Stop Min": safe_float(r.stop_min),
+            "Run Hours": safe_float(r.run_hours),
 
-            "Worked Spindles": safe(r.worked_spindles),
-            "Target Kgs": safe(r.target_kgs),
+            "Worked Spindles": safe_float(r.worked_spindles),
+            "Target Kgs": safe_float(r.target_kgs),
 
-            "Prod Kgs": safe(r.prod_kgs),
-            "Pne Bondas": safe(r.pne_bondas),
-            "Waste": safe(r.waste),
-            "Waste %": safe(r.waste_percent),
+            "Prod Kgs": safe_float(r.prod_kgs),
+            "Pne Bondas": safe_float(r.pne_bondas),
+            "Waste": safe_float(r.waste),
+            "Waste %": safe_float(r.waste_percent),
 
-            "Actual Production": safe(r.actual_prdn),
-            "Efficiency %": safe(r.efficiency),
-            "OEE %": safe(r.oee),
+            "Actual Production": safe_float(r.actual_prdn),
+            "Efficiency %": safe_float(r.efficiency),
+            "OEE %": safe_float(r.oee),
 
             "Remarks": r.remarks or ""
         })
