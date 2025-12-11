@@ -61,7 +61,7 @@ def machine_master_page():
         std_eff = 0
         if allocated_count_id:
             c = session.query(CountMaster).filter_by(id=allocated_count_id).first()
-            std_eff = safe_float(c.std_hank_efficiency)
+            std_eff = safe_float(c.std_hank_eff)
 
         std_hank_preview = calc_std_hank(spdl_speed, tpi, std_eff)
         st.write(f"📘 **STD Hank Preview:** `{std_hank_preview}`")
@@ -154,7 +154,7 @@ def machine_master_page():
 
             # RECALCULATE STD HANK
             c = session.query(CountMaster).filter_by(id=row["Allocated Count"]).first()
-            std_eff = safe_float(c.std_hank_efficiency) if c else 0
+            std_eff = safe_float(c.std_hank_eff) if c else 0
 
             m.std_hank = calc_std_hank(m.spdl_speed, m.tpi, std_eff)
 

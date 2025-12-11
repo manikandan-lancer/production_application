@@ -69,8 +69,8 @@ def count_master_page():
             if existing:
                 # UPDATE existing count
                 existing.actual_count = actual_count
-                existing.spinning_efficiency = spinning_eff
-                existing.std_hank_efficiency = std_hank_eff
+                existing.spinning_count_eff = spinning_eff
+                existing.std_hank_eff = std_hank_eff
                 existing.conversion_factor = preview_cf
 
                 st.success("✔ Existing Count Updated Successfully")
@@ -81,7 +81,7 @@ def count_master_page():
                     count_name=count_name.strip(),
                     actual_count=actual_count,
                     spinning_count_eff=spinning_eff, 
-                    std_hank_efficiency=std_hank_eff,
+                    std_hank_eff=std_hank_eff,
                     conversion_factor=preview_cf,
                 )
                 session.add(new_count)
@@ -110,8 +110,8 @@ def count_master_page():
             "Mill": c.mill.mill_name,
             "Count Name": c.count_name,
             "Actual Count": float(c.actual_count or 0),
-            "Spinning Count Efficiency (%)": float(c.spinning_efficiency or 0),
-            "Std Hank Efficiency (%)": float(c.std_hank_efficiency or 0),
+            "Spinning Count Efficiency (%)": float(c.spinning_count_eff or 0),
+            "Std Hank Efficiency (%)": float(c.std_hank_eff or 0),
             "Conversion Factor": float(c.conversion_factor or 0),
         }
         for c in counts
@@ -137,11 +137,11 @@ def count_master_page():
             c = session.query(CountMaster).filter_by(id=row["ID"]).first()
             if c:
                 c.actual_count = safe_float(row["Actual Count"])
-                c.spinning_efficiency = safe_float(row["Spinning Count Efficiency (%)"])
-                c.std_hank_efficiency = safe_float(row["Std Hank Efficiency (%)"])
+                c.spinning_count_eff = safe_float(row["Spinning Count Efficiency (%)"])
+                c.std_hank_eff = safe_float(row["Std Hank Efficiency (%)"])
                 c.conversion_factor = calc_conversion_factor(
                     c.actual_count,
-                    c.spinning_efficiency,
+                    c.spinning_count_eff,
                 )
 
         session.commit()

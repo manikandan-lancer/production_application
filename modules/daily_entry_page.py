@@ -135,7 +135,7 @@ def daily_entry_page():
 
             count = session.query(CountMaster).filter_by(id=m.allocated_count_id).first()
 
-            std_eff = safe_float(count.std_hank_efficiency) if count else 0
+            std_eff = safe_float(count.std_hank_eff) if count else 0
             std_hank = (safe_float(m.spdl_speed) / safe_float(m.tpi)) * 0.01587394 * (std_eff / 100)
 
             df.append({
