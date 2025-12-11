@@ -3,49 +3,47 @@ import pandas as pd
 from sqlalchemy.orm import Session
 from database.connection import get_session
 from database.models import Mill, CountMaster
-from utils.calc_engine import (
-    safe_float,
-    calc_conversion_factor,
-)
+from utils.calc_engine import safe_float, calc_conversion_factor
 
 
 # -------------------------------------------------------
-# COUNT MASTER PAGE (UPDATED DESIGN)
+# COUNT MASTER PAGE (UPDATED FINAL VERSION)
 # -------------------------------------------------------
 def count_master_page():
-    st.title("🧵 Count Master")
+    st.title("🧵 Count Master Setup")
 
     session: Session = next(get_session())
 
     st.info("""
-    **This table defines the spinning constants for each Count per Mill.**  
-    These values update Machine Master and Daily Entry automatically.
+    Configure count-level constants for each Mill.  
+    These values automatically update Machine Master and Daily Entry.
     """)
 
     # -------------------------------------------------------
-    # LOAD MILLS
+    # LOAD MILL MASTER
     # -------------------------------------------------------
     mills = session.query(Mill).all()
     mill_map = {m.id: m.mill_name for m in mills}
 
     # -------------------------------------------------------
-    # ADD / UPDATE COUNT VALUES
+    # ADD OR UPDATE COUNT
     # -------------------------------------------------------
-    st.subheader("➕ Add or Update Count")
+    st.subheader("➕ Add / Update Count")
 
-    with st.form("count_master_form"):
+    with st.form("count_form"):
         col1, col2 = st.columns(2)
 
         with col1:
-            mill_id = st.selectbox("Mill", mill_map.keys(), format_func=lambda x: mill_map[x])
-            count_name = st.text_input("Count Name (Ex: 40s, 60s, 44s Compact)")
+            mill_id = st.selectbox("Mill", mill_map.keys(),
+                                   format_func=lambda x: mill_map[x])
+            count_name = st.text_input("Count Name (e.g. 40s, 60s)")
 
         with col2:
             actual_count = st.number_input("Actual Count", min_value=0.0, step=0.01)
             spinning_eff = st.number_input("Spinning Count Efficiency (%)", min_value=0.0, step=0.01)
             std_hank_eff = st.number_input("Std Hank Efficiency (%)", min_value=0.0, step=0.01)
 
-        # LIVE CALC PREVIEW
+        # LIVE PREVIEW
         preview_cf = calc_conversion_factor(actual_count, spinning_eff)
         st.write(f"📘 **Conversion Factor Preview:** `{preview_cf}`")
 
@@ -53,10 +51,10 @@ def count_master_page():
 
         if submit:
             if not count_name.strip():
-                st.error("Count name cannot be empty.")
+                st.error("Count Name cannot be empty.")
                 return
 
-            # CHECK IF COUNT ALREADY EXISTS (By name + mill)
+            # CHECK IF COUNT EXISTS FOR THIS MILL
             existing = (
                 session.query(CountMaster)
                 .filter(
@@ -67,24 +65,25 @@ def count_master_page():
             )
 
             if existing:
-                # UPDATE existing count
+                # UPDATE EXISTING
                 existing.actual_count = actual_count
                 existing.spinning_count_eff = spinning_eff
                 existing.std_hank_eff = std_hank_eff
                 existing.conversion_factor = preview_cf
 
-                st.success("✔ Existing Count Updated Successfully")
+                st.success("✔ Count Updated Successfully")
+
             else:
-                # CREATE new count
-                new_count = CountMaster(
+                # CREATE NEW
+                new_c = CountMaster(
                     mill_id=mill_id,
                     count_name=count_name.strip(),
                     actual_count=actual_count,
-                    spinning_count_eff=spinning_eff, 
+                    spinning_count_eff=spinning_eff,
                     std_hank_eff=std_hank_eff,
                     conversion_factor=preview_cf,
                 )
-                session.add(new_count)
+                session.add(new_c)
                 st.success("✔ New Count Added Successfully")
 
             session.commit()
@@ -92,13 +91,15 @@ def count_master_page():
     st.divider()
 
     # -------------------------------------------------------
-    # DISPLAY EXISTING COUNTS
+    # EXISTING COUNTS TABLE (Editable)
     # -------------------------------------------------------
     st.subheader("📄 Existing Counts")
 
-    counts = session.query(CountMaster).order_by(
-        CountMaster.mill_id, CountMaster.count_name
-    ).all()
+    counts = (
+        session.query(CountMaster)
+        .order_by(CountMaster.mill_id, CountMaster.count_name)
+        .all()
+    )
 
     if not counts:
         st.warning("No count records found.")
@@ -129,7 +130,7 @@ def count_master_page():
     )
 
     # -------------------------------------------------------
-    # SAVE UPDATES
+    # SAVE UPDATED GRID VALUES
     # -------------------------------------------------------
     if st.button("💾 Update Count Records"):
 
@@ -147,4 +148,4 @@ def count_master_page():
         session.commit()
         st.success("✔ Count Master Updated")
 
-        st.info("Machine Master & Daily Entry automatically reflect updated values.")
+        st.info("Machine Master & Daily Entry will now auto-update with latest values.")

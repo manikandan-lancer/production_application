@@ -1,4 +1,6 @@
-from sqlalchemy import Column, Integer, String, Date, Time, Numeric, ForeignKey
+from sqlalchemy import (
+    Column, Integer, String, Date, Numeric, ForeignKey, Time
+)
 from sqlalchemy.orm import relationship
 from database.connection import Base
 
@@ -12,11 +14,8 @@ class Mill(Base):
     id = Column(Integer, primary_key=True)
     mill_name = Column(String, nullable=False, unique=True)
 
-    # Reverse relationships
-    counts = relationship("CountMaster", back_populates="mill")
     machines = relationship("Machine", back_populates="mill")
-    employees = relationship("Employee", back_populates="mill")
-    productions = relationship("DailyProduction", back_populates="mill")
+    counts = relationship("CountMaster", back_populates="mill")
 
 
 # ----------------------------------------------------------
@@ -29,7 +28,6 @@ class Department(Base):
     department_name = Column(String, nullable=False)
 
     machines = relationship("Machine", back_populates="department")
-    productions = relationship("DailyProduction", back_populates="department")
 
 
 # ----------------------------------------------------------
@@ -42,9 +40,7 @@ class Shift(Base):
     shift_name = Column(String, nullable=False)
     start_time = Column(Time, nullable=False)
     end_time = Column(Time, nullable=False)
-    total_hours = Column(Numeric(10, 2), default=8.0)
-
-    productions = relationship("DailyProduction", back_populates="shift")
+    total_hours = Column(Numeric(10, 2))
 
 
 # ----------------------------------------------------------
@@ -58,11 +54,11 @@ class CountMaster(Base):
 
     count_name = Column(String, nullable=False)
 
-    # Updated fields
     actual_count = Column(Numeric(10, 4))
-    spinning_count_eff = Column(Numeric(10, 2))   # count-based efficiency
-    std_hank_eff = Column(Numeric(10, 2))         # used for STD Hank
-    conversion_factor = Column(Numeric(10, 2))
+    spinning_count_eff = Column(Numeric(10, 2))      # used for conversion factor
+    std_hank_eff = Column(Numeric(10, 2))            # used for machine std hank calculation
+
+    conversion_factor = Column(Numeric(10, 6))
 
     mill = relationship("Mill", back_populates="counts")
     machines = relationship("Machine", back_populates="allocated_count")
@@ -70,7 +66,7 @@ class CountMaster(Base):
 
 
 # ----------------------------------------------------------
-# MACHINE MASTER  (constants only)
+# MACHINE MASTER
 # ----------------------------------------------------------
 class Machine(Base):
     __tablename__ = "machine_master"
@@ -79,7 +75,6 @@ class Machine(Base):
 
     mill_id = Column(Integer, ForeignKey("mill_master.id"), nullable=False)
     department_id = Column(Integer, ForeignKey("department_master.id"), nullable=False)
-    allocated_count_id = Column(Integer, ForeignKey("count_master.id"))
 
     machine_name = Column(String, nullable=False)
     spindles = Column(Integer)
@@ -87,13 +82,14 @@ class Machine(Base):
     spdl_speed = Column(Numeric(10, 2))
     tpi = Column(Numeric(10, 2))
 
-    # REQUIRED FIELD (you missed this earlier)
-    std_hank = Column(Numeric(10, 2))
+    allocated_count_id = Column(Integer, ForeignKey("count_master.id"))
 
-    # Relationships
+    std_hank = Column(Numeric(10, 6))  # derived from count master
+
     mill = relationship("Mill", back_populates="machines")
     department = relationship("Department", back_populates="machines")
     allocated_count = relationship("CountMaster", back_populates="machines")
+
     productions = relationship("DailyProduction", back_populates="machine")
 
 
@@ -104,18 +100,14 @@ class Employee(Base):
     __tablename__ = "employee_master"
 
     id = Column(Integer, primary_key=True)
-
     employee_no = Column(String, nullable=False)
     employee_name = Column(String, nullable=False)
 
-    mill_id = Column(Integer, ForeignKey("mill_master.id"))
-
-    mill = relationship("Mill", back_populates="employees")
     productions = relationship("DailyProduction", back_populates="employee")
 
 
 # ----------------------------------------------------------
-# DAILY PRODUCTION
+# DAILY PRODUCTION (FINAL DESIGN)
 # ----------------------------------------------------------
 class DailyProduction(Base):
     __tablename__ = "daily_production"
@@ -128,39 +120,32 @@ class DailyProduction(Base):
     department_id = Column(Integer, ForeignKey("department_master.id"))
     shift_id = Column(Integer, ForeignKey("shift_master.id"))
     machine_id = Column(Integer, ForeignKey("machine_master.id"))
-    employee_id = Column(Integer, ForeignKey("employee_master.id"))
     count_id = Column(Integer, ForeignKey("count_master.id"))
+    employee_id = Column(Integer, ForeignKey("employee_master.id"), nullable=True)
 
-    # Machine constants copied at entry time
+    # Constant snapshot from Machine + Count
     spindles = Column(Integer)
     spdl_speed = Column(Numeric(10, 2))
     tpi = Column(Numeric(10, 2))
     std_hank = Column(Numeric(10, 6))
     conversion_factor = Column(Numeric(10, 6))
 
-    # User entry fields
+    # User Inputs
     act_hank = Column(Numeric(10, 2))
     stop_min = Column(Numeric(10, 2))
-    run_hours = Column(Numeric(10, 2))
-
-    prod_kgs = Column(Numeric(10, 2))
     pne_bondas = Column(Numeric(10, 2))
-    waste = Column(Numeric(10, 2))
 
-    # Calculated fields
+    # Calculated Values
     worked_spindles = Column(Numeric(10, 2))
     target_kgs = Column(Numeric(10, 2))
+    production_kgs = Column(Numeric(10, 2))
     actual_prdn = Column(Numeric(10, 2))
     waste_percent = Column(Numeric(10, 2))
-    efficiency = Column(Numeric(10, 2))
-    oee = Column(Numeric(10, 2))
 
     remarks = Column(String)
 
     # Relationships
-    mill = relationship("Mill", back_populates="productions")
-    department = relationship("Department", back_populates="productions")
-    shift = relationship("Shift", back_populates="productions")
     machine = relationship("Machine", back_populates="productions")
-    employee = relationship("Employee", back_populates="productions")
     count = relationship("CountMaster", back_populates="productions")
+    employee = relationship("Employee", back_populates="productions")
+    shift = relationship("Shift")
