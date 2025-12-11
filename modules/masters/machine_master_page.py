@@ -2,23 +2,25 @@ import streamlit as st
 import pandas as pd
 from sqlalchemy.orm import Session
 from database.connection import get_session
-from database.models import Mill, Department, CountMaster, Machine
-from utils.calc_engine import calc_std_hank, safe_float
+from database.models import Mill, Department, Machine, CountMaster
+from utils.calc_engine import safe_float, calc_std_hank
 
 
 # -------------------------------------------------------
-# MACHINE MASTER PAGE
+# MACHINE MASTER PAGE (UPDATED)
 # -------------------------------------------------------
 def machine_master_page():
-    st.title("🛠️ Machine Master")
+    st.title("🛠 Machine Master")
 
     session: Session = next(get_session())
 
-    st.info(
-        "Define machines and their constant parameters. "
-        "STD Hank updates automatically based on Speed, TPI & Efficiency. "
-        "Changes here instantly reflect in Daily Entry & Dashboard."
-    )
+    st.info("""
+    **Define machine constants for each Mill & Department.**  
+    - Spdl Speed, TPI, Spindles are fixed constants  
+    - Efficiency is NOT entered here anymore  
+    - STD Hank auto-calculates using:
+        SpdlSpeed / TPI × 0.01587394 × (StdHankEfficiency_from_CountMaster / 100)
+    """)
 
     # -------------------------------------------------------
     # LOAD MILLS & DEPARTMENTS
@@ -26,8 +28,8 @@ def machine_master_page():
     mills = session.query(Mill).all()
     mill_map = {m.id: m.mill_name for m in mills}
 
-    departments = session.query(Department).all()
-    dept_map = {d.id: d.department_name for d in departments}
+    depts = session.query(Department).all()
+    dept_map = {d.id: d.department_name for d in depts}
 
     counts = session.query(CountMaster).all()
     count_map = {c.id: c.count_name for c in counts}
@@ -38,80 +40,91 @@ def machine_master_page():
     st.subheader("➕ Add New Machine")
 
     with st.form("add_machine_form"):
-        colA, colB = st.columns(2)
+        col1, col2 = st.columns(2)
 
-        with colA:
+        with col1:
             mill_id = st.selectbox("Mill", mill_map.keys(), format_func=lambda x: mill_map[x])
-            department_id = st.selectbox("Department", dept_map.keys(), format_func=lambda x: dept_map[x])
-            machine_name = st.text_input("Machine Name (Ex: A01, B10)")
+            dept_id = st.selectbox("Department", dept_map.keys(), format_func=lambda x: dept_map[x])
+            machine_name = st.text_input("Machine Name (e.g., A01, B10)")
 
-        with colB:
+        with col2:
             spindles = st.number_input("Spindles", min_value=0, step=1)
-            count_id = st.selectbox(
-                "Allocated Count",
-                [None] + list(count_map.keys()),
-                format_func=lambda x: "" if x is None else count_map[x]
-            )
-
             spdl_speed = st.number_input("Spindle Speed", min_value=0.0, step=0.01)
             tpi = st.number_input("TPI", min_value=0.0, step=0.01)
-            efficiency = st.number_input("Efficiency (%)", min_value=0.0, step=0.01)
+            allocated_count_id = st.selectbox(
+                "Allocated Count",
+                [None] + list(count_map.keys()),
+                format_func=lambda x: "" if x is None else count_map[x],
+            )
 
-        # AUTO CALCULATE STD HANK
-        std_hank_preview = calc_std_hank(spdl_speed, tpi, efficiency)
+        # PREVIEW STD HANK
+        std_eff = 0
+        if allocated_count_id:
+            c = session.query(CountMaster).filter_by(id=allocated_count_id).first()
+            std_eff = safe_float(c.std_hank_efficiency)
+
+        std_hank_preview = calc_std_hank(spdl_speed, tpi, std_eff)
         st.write(f"📘 **STD Hank Preview:** `{std_hank_preview}`")
 
-        submit = st.form_submit_button("💾 Save Machine")
+        submitted = st.form_submit_button("💾 Save Machine")
 
-        if submit:
-            if machine_name.strip() == "":
+        if submitted:
+            if not machine_name.strip():
                 st.error("Machine name cannot be empty.")
-            else:
-                machine = Machine(
-                    mill_id=mill_id,
-                    department_id=department_id,
-                    allocated_count_id=count_id,
-                    machine_name=machine_name,
-                    spindles=spindles,
-                    spdl_speed=spdl_speed,
-                    tpi=tpi,
-                    efficiency=efficiency,
-                    std_hank=std_hank_preview,
-                )
-                session.add(machine)
-                session.commit()
-                st.success("✅ Machine Added Successfully!")
+                return
+
+            new_machine = Machine(
+                mill_id=mill_id,
+                department_id=dept_id,
+                machine_name=machine_name.strip(),
+                spindles=spindles,
+                spdl_speed=spdl_speed,
+                tpi=tpi,
+                allocated_count_id=allocated_count_id,
+                std_hank=std_hank_preview,
+            )
+            session.add(new_machine)
+            session.commit()
+
+            st.success("✔ Machine Added Successfully")
 
     st.divider()
 
     # -------------------------------------------------------
-    # LIST MACHINES
+    # EXISTING MACHINE TABLE (Excel-like Editable Grid)
     # -------------------------------------------------------
     st.subheader("📄 Existing Machines")
 
-    machines = session.query(Machine).order_by(Machine.id.asc()).all()
+    machines = (
+        session.query(Machine)
+        .order_by(Machine.mill_id, Machine.department_id, Machine.machine_name)
+        .all()
+    )
 
     if not machines:
-        st.warning("No machines configured yet.")
+        st.warning("No machines added yet.")
         return
 
-    df = pd.DataFrame([
-        {
+    df = []
+    for m in machines:
+        c = session.query(CountMaster).filter_by(id=m.allocated_count_id).first()
+
+        df.append({
             "ID": m.id,
             "Mill": m.mill.mill_name,
             "Department": m.department.department_name,
-            "Machine": m.machine_name,
+            "Machine Name": m.machine_name,
             "Spindles": m.spindles,
-            "Allocated Count": count_map.get(m.allocated_count_id, ""),
-            "Spdl_Speed": float(m.spdl_speed or 0),
+            "Spindle Speed": float(m.spdl_speed or 0),
             "TPI": float(m.tpi or 0),
-            "Efficiency (%)": float(m.efficiency or 0),
-            "STD_Hank": float(m.std_hank or 0),
-        }
-        for m in machines
-    ])
+            "Allocated Count": c.id if c else None,
+            "Allocated Count Name": c.count_name if c else "",
+            "Std Hank": float(m.std_hank or 0),
+        })
 
-    edited_df = st.data_editor(
+    df = pd.DataFrame(df)
+
+    editor = st.data_editor(
         df,
         hide_index=True,
         use_container_width=True,
@@ -119,32 +132,33 @@ def machine_master_page():
             "ID": st.column_config.NumberColumn(disabled=True),
             "Mill": st.column_config.TextColumn(disabled=True),
             "Department": st.column_config.TextColumn(disabled=True),
-            "Allocated Count": st.column_config.TextColumn(disabled=True),
-            "STD_Hank": st.column_config.NumberColumn(disabled=True),
+            "Allocated Count Name": st.column_config.TextColumn(disabled=True),
+            "Std Hank": st.column_config.NumberColumn(disabled=True),
         }
     )
 
     # -------------------------------------------------------
-    # SAVE UPDATES
+    # SAVE EDITS BACK INTO DB
     # -------------------------------------------------------
-    if st.button("💾 Update Machine Records"):
+    if st.button("💾 Save Updates"):
 
-        for _, row in edited_df.iterrows():
-
+        for _, row in editor.iterrows():
             m = session.query(Machine).filter_by(id=row["ID"]).first()
-            if m:
-                m.spindles = safe_float(row["Spindles"])
-                m.spdl_speed = safe_float(row["Spdl_Speed"])
-                m.tpi = safe_float(row["TPI"])
-                m.efficiency = safe_float(row["Efficiency (%)"])
+            if not m:
+                continue
 
-                # Auto-update STD HANK
-                m.std_hank = calc_std_hank(
-                    m.spdl_speed,
-                    m.tpi,
-                    m.efficiency
-                )
+            m.spindles = safe_float(row["Spindles"])
+            m.spdl_speed = safe_float(row["Spindle Speed"])
+            m.tpi = safe_float(row["TPI"])
+            m.allocated_count_id = row["Allocated Count"]
+
+            # RECALCULATE STD HANK
+            c = session.query(CountMaster).filter_by(id=row["Allocated Count"]).first()
+            std_eff = safe_float(c.std_hank_efficiency) if c else 0
+
+            m.std_hank = calc_std_hank(m.spdl_speed, m.tpi, std_eff)
 
         session.commit()
-        st.success("✅ Machine Records Updated Successfully!")
-        st.info("Daily Entry will automatically pick up the updated values.")
+        st.success("✔ Machine Master Updated Successfully")
+
+        st.info("Daily Entry will now use updated Machine Master values.")
