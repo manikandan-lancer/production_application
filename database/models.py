@@ -44,13 +44,13 @@ class CountMaster(Base):
 
     count_name = Column(String, nullable=False)
 
+    # NEW FIELDS
     actual_count = Column(Numeric(10, 4))
-    spinning_count_eff = Column(Numeric(10, 2))    # renamed from efficiency_base
-    std_hank_eff = Column(Numeric(10, 2))          # moved from machine master
-    
+    spinning_count_eff = Column(Numeric(10, 2))   # renamed from efficiency_base
+    std_hank_eff = Column(Numeric(10, 2))         # moved from machine master
     conversion_factor = Column(Numeric(10, 6))
 
-    mill = relationship("Mill")
+    mill = relationship("Mill", back_populates="counts")
 
 
 # ----------------------------------------------------------

@@ -12,7 +12,7 @@ def department_master_page():
     depts = session.query(Department).all()
     st.table({"ID": [d.id for d in depts], "Department": [d.department_name for d in depts]})
 
-    dept = st.text_input("Add Department Name (1, 2, 3)")
+    dept = st.text_input("Add Department Name")
 
     if st.button("Save Department"):
         if dept:

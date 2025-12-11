@@ -80,7 +80,7 @@ def count_master_page():
                     mill_id=mill_id,
                     count_name=count_name.strip(),
                     actual_count=actual_count,
-                    spinning_efficiency=spinning_eff,
+                    spinning_count_eff=spinning_eff, 
                     std_hank_efficiency=std_hank_eff,
                     conversion_factor=preview_cf,
                 )
