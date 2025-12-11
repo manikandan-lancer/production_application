@@ -23,7 +23,7 @@ def calc_conversion_factor(actual_count, spinning_eff):
     if ac == 0:
         return 0.0
 
-    return round((1 / ac) * 0.4536 * eff, 6)
+    return round((1 / ac) * 0.4536 * eff, 2)
 
 
 # ----------------------------------------------------------
@@ -40,7 +40,7 @@ def calc_std_hank(speed, tpi, std_hank_eff):
     if t == 0:
         return 0.0
 
-    return round((sp / t) * 0.01587394 * eff, 6)
+    return round((sp / t) * 0.01587394 * eff, 2)
 
 
 # ----------------------------------------------------------
@@ -112,16 +112,3 @@ def calc_waste_percent(pne_bondas, prodn_kgs):
 
     return round((safe_float(pne_bondas) / p) * 100, 2)
 
-
-# ----------------------------------------------------------
-# DAILY ENTRY — Efficiency
-# ----------------------------------------------------------
-def calc_efficiency(act_hank, std_hank):
-    """
-    Efficiency = (ACT / STD) × 100
-    """
-    std = safe_float(std_hank)
-    if std == 0:
-        return 0.0
-
-    return round((safe_float(act_hank) / std) * 100, 2)
