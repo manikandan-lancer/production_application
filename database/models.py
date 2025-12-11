@@ -62,7 +62,7 @@ class CountMaster(Base):
     actual_count = Column(Numeric(10, 4))
     spinning_count_eff = Column(Numeric(10, 2))   # count-based efficiency
     std_hank_eff = Column(Numeric(10, 2))         # used for STD Hank
-    conversion_factor = Column(Numeric(10, 6))
+    conversion_factor = Column(Numeric(10, 2))
 
     mill = relationship("Mill", back_populates="counts")
     machines = relationship("Machine", back_populates="allocated_count")
@@ -86,6 +86,9 @@ class Machine(Base):
 
     spdl_speed = Column(Numeric(10, 2))
     tpi = Column(Numeric(10, 2))
+
+    # REQUIRED FIELD (you missed this earlier)
+    std_hank = Column(Numeric(10, 2))
 
     # Relationships
     mill = relationship("Mill", back_populates="machines")

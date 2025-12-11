@@ -11,8 +11,8 @@ menu = st.sidebar.radio(
 )
 
 if menu == "Home":
-    st.title("🏭 Production Application")
-    st.write("Welcome to the Production Management System.")
+    st.title("🏭 SREE KADERI AMBAL MILLS LTD, SHANMUGANATHAPURAM.")
+    st.write("Production Management System.")
 
 elif menu == "Masters":
     master_page()
