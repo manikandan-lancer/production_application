@@ -96,9 +96,12 @@ def daily_entry_page():
     # ------------------------------------------------------
     if saved:
         for r in saved:
+            machine = session.query(Machine).get(r.machine_id)
+            count = session.query(CountMaster).get(r.count_id)
+
             rows.append({
                 "machine_id": r.machine_id,
-                "machine_name": r.machine.machine_name,
+                "machine_name": machine.machine_name if machine else "",
 
                 "spindles": r.spindles,
                 "speed": r.spdl_speed,
@@ -106,7 +109,7 @@ def daily_entry_page():
                 "std_hank": r.std_hank,
 
                 "count_id": r.count_id,
-                "count_name": r.count.count_name if r.count else "",
+                "count_name": count.count_name if count else "",
                 "conversion_factor": r.conversion_factor,
 
                 "act_hank": r.act_hank,
@@ -121,6 +124,7 @@ def daily_entry_page():
 
                 "remarks": r.remarks or "",
             })
+
 
     # ------------------------------------------------------
     # NEW ENTRY
