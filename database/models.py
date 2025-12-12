@@ -65,30 +65,41 @@ class Employee(Base):
 
 class DailyProduction(Base):
     __tablename__ = "daily_production"
-    id = Column(Integer, primary_key=True)
-    date = Column(Date, nullable=False)
-    mill_id = Column(Integer)
-    department_id = Column(Integer)
-    shift_id = Column(Integer)
-    machine_id = Column(Integer)
-    count_id = Column(Integer, ForeignKey("count_master.id"))
-    count = relationship("CountMaster")
-    employee_id = Column(Integer, nullable=True)
 
+    id = Column(Integer, primary_key=True)
+
+    date = Column(Date, nullable=False)
+    mill_id = Column(Integer, ForeignKey("mill_master.id"))
+    department_id = Column(Integer, ForeignKey("department_master.id"))
+    shift_id = Column(Integer, ForeignKey("shift_master.id"))
+
+    machine_id = Column(Integer, ForeignKey("machine_master.id"))
+    count_id = Column(Integer, ForeignKey("count_master.id"))
+    employee_id = Column(Integer, ForeignKey("employee_master.id"), nullable=True)
+
+    # Machine snapshot
     spindles = Column(Integer)
     spdl_speed = Column(Numeric(10, 2))
     tpi = Column(Numeric(10, 2))
     std_hank = Column(Numeric(10, 4))
     conversion_factor = Column(Numeric(10, 6))
 
+    # User inputs
     act_hank = Column(Numeric(10, 2))
     stop_min = Column(Numeric(10, 2))
     prod_kgs = Column(Numeric(10, 2))
     pne_bondas = Column(Numeric(10, 2))
 
+    # Calculations
     worked_spindles = Column(Numeric(10, 2))
     target_kgs = Column(Numeric(10, 2))
     actual_prdn = Column(Numeric(10, 2))
     waste_percent = Column(Numeric(10, 2))
 
     remarks = Column(String)
+
+    # ✅ REQUIRED RELATIONSHIPS
+    machine = relationship("Machine")
+    count = relationship("CountMaster")
+    employee = relationship("Employee")
+    shift = relationship("Shift")
