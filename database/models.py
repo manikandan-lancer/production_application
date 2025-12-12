@@ -25,16 +25,21 @@ class Shift(Base):
 
 class CountMaster(Base):
     __tablename__ = "count_master"
+
     id = Column(Integer, primary_key=True)
     mill_id = Column(Integer, ForeignKey("mill_master.id"), nullable=False)
+
     count_name = Column(String, nullable=False)
+
     actual_count = Column(Numeric(10, 4))
     spinning_count_eff = Column(Numeric(10, 2))
     std_hank_eff = Column(Numeric(10, 2))
+
     conversion_factor = Column(Numeric(10, 6))
+
     mill = relationship("Mill", back_populates="counts")
     machines = relationship("Machine", back_populates="allocated_count")
-    productions = relationship("DailyProduction", back_populates="count")
+
 
 class Machine(Base):
     __tablename__ = "machine_master"
@@ -67,7 +72,8 @@ class DailyProduction(Base):
     department_id = Column(Integer)
     shift_id = Column(Integer)
     machine_id = Column(Integer)
-    count_id = Column(Integer)
+    count_id = Column(Integer, ForeignKey("count_master.id"))
+    count = relationship("CountMaster")
     employee_id = Column(Integer, nullable=True)
 
     spindles = Column(Integer)
