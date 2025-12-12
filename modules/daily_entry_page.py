@@ -12,7 +12,7 @@ from utils.calc_engine import (
     safe_float,
     calc_worked_spindles,
     calc_target_kgs,
-    calc_actual_production,
+    calc_actual_prdn,
     calc_waste_percent
 )
 
@@ -186,7 +186,7 @@ def daily_entry_page():
         )
         edited.at[i, "target_kgs"] = target
 
-        actual = calc_actual_production(row["prod_kgs"], row["pne_bondas"])
+        actual = calc_actual_prdn(row["prod_kgs"], row["pne_bondas"])
         edited.at[i, "actual_prdn"] = actual
 
         waste_pct = calc_waste_percent(row["pne_bondas"], row["prod_kgs"])
