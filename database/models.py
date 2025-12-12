@@ -40,7 +40,6 @@ class CountMaster(Base):
     mill = relationship("Mill", back_populates="counts")
     machines = relationship("Machine", back_populates="allocated_count")
 
-
 class Machine(Base):
     __tablename__ = "machine_master"
     id = Column(Integer, primary_key=True)
@@ -55,14 +54,14 @@ class Machine(Base):
     mill = relationship("Mill", back_populates="machines")
     department = relationship("Department", back_populates="machines")
     allocated_count = relationship("CountMaster", back_populates="machines")
-    productions = relationship("DailyProduction", back_populates="machine")
+    # productions = relationship("DailyProduction", back_populates="machine")
 
 class Employee(Base):
     __tablename__ = "employee_master"
     id = Column(Integer, primary_key=True)
     employee_no = Column(String, nullable=False)
     employee_name = Column(String, nullable=False)
-    productions = relationship("DailyProduction", back_populates="employee")
+    # productions = relationship("DailyProduction", back_populates="employee")
 
 class DailyProduction(Base):
     __tablename__ = "daily_production"
