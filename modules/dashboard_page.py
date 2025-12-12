@@ -86,33 +86,34 @@ def dashboard_page():
         shift = session.query(Shift).get(r.shift_id)
 
         data.append({
-            "Date": r.date,
-            "Mill": mill_map.get(r.mill_id),
-            "Department": dept_map.get(r.department_id),
-            "Shift": shift.shift_name if shift else "",
-            "Machine": machine.machine_name if machine else "",
+        "Date": r.date,
+        "Mill": mill_map.get(r.mill_id),
+        "Department": dept_map.get(r.department_id),
+        "Shift": shift.shift_name if shift else "",
 
-            "Spindles": r.spindles,
-            "Speed": r.spdl_speed,
-            "TPI": r.tpi,
-            "Std Hank": r.std_hank,
+        "Machine": machine.machine_name if machine else "",
 
-            "Count": count.count_name if count else "",
-            "Conversion Factor": r.conversion_factor,
+        "Spindles": r.spindles,
+        "Speed": r.spdl_speed,
+        "TPI": r.tpi,
+        "Std Hank": r.std_hank,
 
-            "Worked Spindles": r.worked_spindles,
-            "Target Kgs": r.target_kgs,
+        "Count": count.count_name if count else "",
+        "Conversion Factor": r.conversion_factor,
 
-            "Actual Hank": r.act_hank,
-            "Stop Min": r.stop_min,
-            "Prod Kgs": r.prod_kgs,
-            "Pneumafil": r.pne_bondas,
+        "Worked Spindles": r.worked_spindles,
+        "Target Kgs": r.target_kgs,
 
-            "Actual Production": r.actual_prdn,
-            "Waste %": r.waste_percent,
+        "Actual Hank": r.act_hank,
+        "Stop Min": r.stop_min,
+        "Prod Kgs": r.prod_kgs,
+        "Pneumafil": r.pne_bondas,
 
-            "Employee": emp.employee_name if emp else "",
-            "Remarks": r.remarks or "",
+        "Actual Production": r.actual_prdn,
+        "Waste %": r.waste_percent,
+
+        "Employee": emp.employee_name if emp else "",
+        "Remarks": r.remarks or "",
         })
 
     df = pd.DataFrame(data)

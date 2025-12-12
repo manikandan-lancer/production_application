@@ -10,15 +10,18 @@ from database.models import (
 
 from utils.calc_engine import (
     safe_float,
+    calc_std_hank,
     calc_worked_spindles,
     calc_target_kgs,
     calc_actual_prdn,
-    calc_waste_percent
+    calc_waste_percent,
+    calc_conversion_factor,
+    calc_prod_kgs
 )
 
 
 # ----------------------------------------------------------
-# DAILY ENTRY PAGE — FINAL VERSION
+# DAILY ENTRY PAGE — FINAL CORRECT VERSION
 # ----------------------------------------------------------
 def daily_entry_page():
     st.title("📘 Daily Production Entry")
@@ -36,20 +39,26 @@ def daily_entry_page():
     with colB:
         mills = session.query(Mill).all()
         mill_map = {m.id: m.mill_name for m in mills}
-        mill_id = st.selectbox("Mill", mill_map.keys(),
-                               format_func=lambda x: mill_map[x])
+        mill_id = st.selectbox(
+            "Mill", mill_map.keys(),
+            format_func=lambda x: mill_map[x]
+        )
 
     with colC:
         depts = session.query(Department).all()
         dept_map = {d.id: d.department_name for d in depts}
-        dept_id = st.selectbox("Department", dept_map.keys(),
-                               format_func=lambda x: dept_map[x])
+        dept_id = st.selectbox(
+            "Department", dept_map.keys(),
+            format_func=lambda x: dept_map[x]
+        )
 
     with colD:
         shifts = session.query(Shift).all()
         shift_map = {s.id: s.shift_name for s in shifts}
-        shift_id = st.selectbox("Shift", shift_map.keys(),
-                                format_func=lambda x: shift_map[x])
+        shift_id = st.selectbox(
+            "Shift", shift_map.keys(),
+            format_func=lambda x: shift_map[x]
+        )
 
     st.divider()
 
@@ -58,18 +67,20 @@ def daily_entry_page():
     # ------------------------------------------------------
     machines = (
         session.query(Machine)
-        .filter(Machine.mill_id == mill_id,
-                Machine.department_id == dept_id)
+        .filter(
+            Machine.mill_id == mill_id,
+            Machine.department_id == dept_id
+        )
         .order_by(Machine.machine_name)
         .all()
     )
 
     if not machines:
-        st.warning("No machines found for this Mill & Department.")
+        st.warning("No machines found.")
         return
 
     # ------------------------------------------------------
-    # CHECK EXISTING SAVED DATA
+    # LOAD SAVED DATA IF EXISTS
     # ------------------------------------------------------
     saved = session.query(DailyProduction).filter(
         DailyProduction.date == date,
@@ -78,17 +89,14 @@ def daily_entry_page():
         DailyProduction.shift_id == shift_id,
     ).all()
 
+    rows = []
+
     # ------------------------------------------------------
-    # CASE 1 — Load existing saved production entries
+    # EXISTING DATA
     # ------------------------------------------------------
     if saved:
-        st.success("Loaded previously saved entries.")
-
-        df = []
         for r in saved:
-            cnt = session.query(CountMaster).get(r.count_id)
-
-            df.append({
+            rows.append({
                 "machine_id": r.machine_id,
                 "machine_name": r.machine.machine_name,
 
@@ -98,53 +106,56 @@ def daily_entry_page():
                 "std_hank": r.std_hank,
 
                 "count_id": r.count_id,
-                "count_name": cnt.count_name if cnt else "",
-                "conversion_factor": float(r.conversion_factor or 0),
+                "count_name": r.count.count_name if r.count else "",
+                "conversion_factor": r.conversion_factor,
 
-                "act_hank": float(r.act_hank or 0),
-                "stop_min": float(r.stop_min or 0),
-                "prod_kgs": float(r.prod_kgs or 0),
-                "pne_bondas": float(r.pne_bondas or 0),
+                "act_hank": r.act_hank,
+                "stop_min": r.stop_min,
+                "prod_kgs": r.prod_kgs,
+                "pne_bondas": r.pne_bondas,
 
-                "worked_spindles": float(r.worked_spindles or 0),
-                "target_kgs": float(r.target_kgs or 0),
-                "actual_prdn": float(r.actual_prdn or 0),
-                "waste_percent": float(r.waste_percent or 0),
+                "worked_spindles": r.worked_spindles,
+                "target_kgs": r.target_kgs,
+                "actual_prdn": r.actual_prdn,
+                "waste_percent": r.waste_percent,
 
                 "remarks": r.remarks or "",
             })
 
-        df = pd.DataFrame(df)
-
     # ------------------------------------------------------
-    # CASE 2 — New entry sheet
+    # NEW ENTRY
     # ------------------------------------------------------
     else:
-        df = []
         for m in machines:
             cnt = session.query(CountMaster).get(m.allocated_count_id)
+
+            std_eff = safe_float(cnt.std_hank_eff) if cnt else 0
             conv = safe_float(cnt.conversion_factor) if cnt else 0
 
-            df.append({
+            std_hank = calc_std_hank(
+                safe_float(m.spdl_speed),
+                safe_float(m.tpi),
+                std_eff
+            )
+
+            rows.append({
                 "machine_id": m.id,
                 "machine_name": m.machine_name,
 
                 "spindles": m.spindles,
-                "speed": float(m.spdl_speed or 0),
-                "tpi": float(m.tpi or 0),
-                "std_hank": float(m.std_hank or 0),
+                "speed": m.spdl_speed,
+                "tpi": m.tpi,
+                "std_hank": std_hank,
 
                 "count_id": m.allocated_count_id,
                 "count_name": cnt.count_name if cnt else "",
                 "conversion_factor": conv,
 
-                # user input
                 "act_hank": 0.0,
                 "stop_min": 0.0,
                 "prod_kgs": 0.0,
                 "pne_bondas": 0.0,
 
-                # calculated
                 "worked_spindles": 0.0,
                 "target_kgs": 0.0,
                 "actual_prdn": 0.0,
@@ -153,44 +164,51 @@ def daily_entry_page():
                 "remarks": "",
             })
 
-        df = pd.DataFrame(df)
+    df = pd.DataFrame(rows)
 
     # ------------------------------------------------------
-    # READONLY FIELDS
+    # DATA EDITOR
     # ------------------------------------------------------
-    readonly = [
-        "machine_name", "spindles", "speed", "tpi", "std_hank",
-        "count_name", "conversion_factor",
+    readonly_cols = [
+        "machine_name", "spindles", "speed", "tpi",
+        "std_hank", "count_name", "conversion_factor",
         "worked_spindles", "target_kgs",
-        "actual_prdn", "waste_percent",
+        "actual_prdn", "waste_percent"
     ]
 
     edited = st.data_editor(
         df,
-        disabled=readonly,
+        disabled=readonly_cols,
         use_container_width=True
     )
 
     # ------------------------------------------------------
-    # LIVE CALCULATIONS
+    # LIVE EXCEL-STYLE CALCULATIONS
     # ------------------------------------------------------
-    for i, row in edited.iterrows():
+    for i, r in edited.iterrows():
 
-        worked = calc_worked_spindles(row["spindles"], row["stop_min"])
+        worked = calc_worked_spindles(r["spindles"], r["stop_min"])
         edited.at[i, "worked_spindles"] = worked
 
         target = calc_target_kgs(
-            row["conversion_factor"],
-            row["spindles"],
-            row["std_hank"],
+            r["conversion_factor"],
+            r["spindles"],
+            r["std_hank"]
         )
         edited.at[i, "target_kgs"] = target
 
-        actual = calc_actual_prdn(row["prod_kgs"], row["pne_bondas"])
+        prod = calc_prod_kgs(
+            r["conversion_factor"],
+            r["spindles"],
+            r["act_hank"]
+        )
+        edited.at[i, "prod_kgs"] = prod
+
+        actual = calc_actual_prdn(prod, r["pne_bondas"])
         edited.at[i, "actual_prdn"] = actual
 
-        waste_pct = calc_waste_percent(row["pne_bondas"], row["prod_kgs"])
-        edited.at[i, "waste_percent"] = waste_pct
+        waste = calc_waste_percent(r["pne_bondas"], prod)
+        edited.at[i, "waste_percent"] = waste
 
     # ------------------------------------------------------
     # SAVE
@@ -203,38 +221,37 @@ def daily_entry_page():
             DailyProduction.department_id == dept_id,
             DailyProduction.shift_id == shift_id,
         ).delete()
+
         session.commit()
 
-        for _, row in edited.iterrows():
-            dp = DailyProduction(
+        for _, r in edited.iterrows():
+            session.add(DailyProduction(
                 date=date,
                 mill_id=mill_id,
                 department_id=dept_id,
                 shift_id=shift_id,
 
-                machine_id=row["machine_id"],
-                count_id=row["count_id"],
+                machine_id=r["machine_id"],
+                count_id=r["count_id"],
 
-                spindles=row["spindles"],
-                spdl_speed=row["speed"],
-                tpi=row["tpi"],
-                std_hank=row["std_hank"],
-                conversion_factor=row["conversion_factor"],
+                spindles=r["spindles"],
+                spdl_speed=r["speed"],
+                tpi=r["tpi"],
+                std_hank=r["std_hank"],
+                conversion_factor=r["conversion_factor"],
 
-                act_hank=row["act_hank"],
-                stop_min=row["stop_min"],
+                act_hank=r["act_hank"],
+                stop_min=r["stop_min"],
+                prod_kgs=r["prod_kgs"],
+                pne_bondas=r["pne_bondas"],
 
-                worked_spindles=row["worked_spindles"],
-                target_kgs=row["target_kgs"],
+                worked_spindles=r["worked_spindles"],
+                target_kgs=r["target_kgs"],
+                actual_prdn=r["actual_prdn"],
+                waste_percent=r["waste_percent"],
 
-                prod_kgs=row["prod_kgs"],
-                pne_bondas=row["pne_bondas"],
-                actual_prdn=row["actual_prdn"],
-                waste_percent=row["waste_percent"],
-
-                remarks=row["remarks"]
-            )
-            session.add(dp)
+                remarks=r["remarks"]
+            ))
 
         session.commit()
-        st.success("✅ Daily Production Saved!")
+        st.success("✅ Daily Production Saved Successfully")
