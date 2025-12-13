@@ -181,10 +181,26 @@ def daily_entry_page():
     ]
 
     edited = st.data_editor(
-        df,
-        disabled=readonly_cols,
-        use_container_width=True
+    df,
+    disabled=readonly_cols,
+    use_container_width=True,
+    column_config={
+        "std_hank": st.column_config.NumberColumn(format="%.2f"),
+        "conversion_factor": st.column_config.NumberColumn(format="%.2f"),
+
+        "worked_spindles": st.column_config.NumberColumn(format="%.2f"),
+        "target_kgs": st.column_config.NumberColumn(format="%.2f"),
+        "prod_kgs": st.column_config.NumberColumn(format="%.2f"),
+        "actual_prdn": st.column_config.NumberColumn(format="%.2f"),
+        "waste_percent": st.column_config.NumberColumn(format="%.2f"),
+
+        # user inputs
+        "act_hank": st.column_config.NumberColumn(format="%.2f"),
+        "stop_min": st.column_config.NumberColumn(format="%.2f"),
+        "pne_bondas": st.column_config.NumberColumn(format="%.2f"),
+        }
     )
+
 
     # ------------------------------------------------------
     # LIVE EXCEL-STYLE CALCULATIONS

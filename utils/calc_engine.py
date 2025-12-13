@@ -18,7 +18,8 @@ def calc_std_hank(spdl_speed, tpi, std_hank_eff):
     if t == 0:
         return 0.0
 
-    return round((sp / t) * 0.01587394 * eff, 2)
+    # ❌ NO ROUNDING
+    return (sp / t) * 0.01587394 * eff
 
 
 def calc_conversion_factor(actual_count, spinning_eff):
@@ -28,7 +29,7 @@ def calc_conversion_factor(actual_count, spinning_eff):
     if ac == 0:
         return 0.0
 
-    return round((1 / ac) * 0.4536 * eff, 2)
+    return (1 / ac) * 0.4536 * eff
 
 
 # -------------------------------
@@ -37,23 +38,23 @@ def calc_conversion_factor(actual_count, spinning_eff):
 def calc_worked_spindles(spindles, stop_min):
     sp = safe_float(spindles)
     stop = safe_float(stop_min)
-    return round(sp - (stop * sp / 480), 2)
+    return sp - (stop * sp / 480)
 
 
 def calc_target_kgs(cf, spindles, std_hank):
-    return round(safe_float(cf) * safe_float(spindles) * safe_float(std_hank), 2)
+    return safe_float(cf) * safe_float(spindles) * safe_float(std_hank)
 
 
 def calc_prod_kgs(cf, spindles, act_hank):
-    return round(safe_float(cf) * safe_float(spindles) * safe_float(act_hank), 2)
+    return safe_float(cf) * safe_float(spindles) * safe_float(act_hank)
 
 
 def calc_actual_prdn(prod_kgs, pne_bondas):
-    return round(safe_float(prod_kgs) - safe_float(pne_bondas), 2)
+    return safe_float(prod_kgs) - safe_float(pne_bondas)
 
 
 def calc_waste_percent(pne_bondas, prod_kgs):
     prod = safe_float(prod_kgs)
     if prod == 0:
         return 0.0
-    return round((safe_float(pne_bondas) / prod) * 100, 2)
+    return (safe_float(pne_bondas) / prod) * 100

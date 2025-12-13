@@ -107,7 +107,7 @@ def dashboard_page():
         "Actual Hank": r.act_hank,
         "Stop Min": r.stop_min,
         "Prod Kgs": r.prod_kgs,
-        "Pneumafil": r.pne_bondas,
+        "Pne Bondas": r.pne_bondas,
 
         "Actual Production": r.actual_prdn,
         "Waste %": r.waste_percent,
@@ -118,7 +118,18 @@ def dashboard_page():
 
     df = pd.DataFrame(data)
 
-    st.dataframe(df, use_container_width=True)
+    st.dataframe(
+        df.style.format({
+            "Std Hank": "{:.2f}",
+            "Conversion Factor": "{:.2f}",
+            "Worked Spindles": "{:.2f}",
+            "Target Kgs": "{:.2f}",
+            "Prod Kgs": "{:.2f}",
+            "Actual Production": "{:.2f}",
+            "Waste %": "{:.2f}",
+        }),
+        use_container_width=True
+    )
 
     # -------------------------------
     # SUMMARY
