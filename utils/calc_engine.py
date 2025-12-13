@@ -75,7 +75,7 @@ def calc_actual_gps(actual_prdn, worked_spindles):
 
 
 def calc_diff_gps(std_gps, actual_gps):
-    return safe_float(std_gps) - safe_float(actual_gps)
+    return safe_float(actual_gps) - safe_float(std_gps)
 
 
 def calc_40s_conv_gps(conv_40s_factor, actual_gps):
