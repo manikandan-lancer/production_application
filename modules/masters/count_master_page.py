@@ -42,9 +42,7 @@ def count_master_page():
             actual_count = st.number_input("Actual Count", min_value=0.0, step=0.01)
             spinning_eff = st.number_input("Spinning Count Efficiency (%)", min_value=0.0, step=0.01)
             std_hank_eff = st.number_input("Std Hank Efficiency (%)", min_value=0.0, step=0.01)
-            conv_40s_factor = st.number_input("40s Conversion Factor",min_value=0.0,step=0.0001
-)
-
+            conv_40s_factor = st.number_input("40s Conversion Factor", min_value=0.0, step=0.000001, format="%.6f")
 
         # LIVE PREVIEW
         preview_cf = calc_conversion_factor(actual_count, spinning_eff)
