@@ -1,13 +1,14 @@
 import streamlit as st
 import pandas as pd
 from sqlalchemy.orm import Session
+
 from database.connection import get_session
 from database.models import Mill, CountMaster
 from utils.calc_engine import safe_float, calc_conversion_factor
 
 
 # -------------------------------------------------------
-# COUNT MASTER PAGE (UPDATED FINAL VERSION)
+# COUNT MASTER PAGE — FINAL FULL VERSION
 # -------------------------------------------------------
 def count_master_page():
     st.title("🧵 Count Master Setup")
@@ -15,8 +16,9 @@ def count_master_page():
     session: Session = next(get_session())
 
     st.info("""
-    Configure count-level constants for each Mill.  
-    These values automatically update Machine Master and Daily Entry.
+    Configure count-level constants for each Mill.
+    These values automatically update Machine Master,
+    Daily Entry, and Dashboard calculations.
     """)
 
     # -------------------------------------------------------
@@ -26,7 +28,7 @@ def count_master_page():
     mill_map = {m.id: m.mill_name for m in mills}
 
     # -------------------------------------------------------
-    # ADD OR UPDATE COUNT
+    # ADD / UPDATE COUNT
     # -------------------------------------------------------
     st.subheader("➕ Add / Update Count")
 
@@ -34,17 +36,41 @@ def count_master_page():
         col1, col2 = st.columns(2)
 
         with col1:
-            mill_id = st.selectbox("Mill", mill_map.keys(),
-                                   format_func=lambda x: mill_map[x])
+            mill_id = st.selectbox(
+                "Mill",
+                mill_map.keys(),
+                format_func=lambda x: mill_map[x]
+            )
             count_name = st.text_input("Count Name (e.g. 40s, 60s)")
 
         with col2:
-            actual_count = st.number_input("Actual Count", min_value=0.0, step=0.01)
-            spinning_eff = st.number_input("Spinning Count Efficiency (%)", min_value=0.0, step=0.01)
-            std_hank_eff = st.number_input("Std Hank Efficiency (%)", min_value=0.0, step=0.01)
-            conv_40s_factor = st.number_input("40s Conversion Factor", min_value=0.0, step=0.000001, format="%.6f")
+            actual_count = st.number_input(
+                "Actual Count",
+                min_value=0.0,
+                step=0.01
+            )
 
-        # LIVE PREVIEW
+            spinning_eff = st.number_input(
+                "Spinning Count Efficiency (%)",
+                min_value=0.0,
+                step=0.01
+            )
+
+            std_hank_eff = st.number_input(
+                "Std Hank Efficiency (%)",
+                min_value=0.0,
+                step=0.01
+            )
+
+            # ✅ NO ROUNDING – USER CONTROLLED
+            conv_40s_factor = st.number_input(
+                "40s Conversion Factor",
+                min_value=0.0,
+                step=0.000001,
+                format="%.6f"
+            )
+
+        # LIVE PREVIEW (NOT STORED)
         preview_cf = calc_conversion_factor(actual_count, spinning_eff)
         st.write(f"📘 **Conversion Factor Preview:** `{preview_cf}`")
 
@@ -55,7 +81,6 @@ def count_master_page():
                 st.error("Count Name cannot be empty.")
                 return
 
-            # CHECK IF COUNT EXISTS FOR THIS MILL
             existing = (
                 session.query(CountMaster)
                 .filter(
@@ -66,18 +91,15 @@ def count_master_page():
             )
 
             if existing:
-                # UPDATE EXISTING
                 existing.actual_count = actual_count
                 existing.spinning_count_eff = spinning_eff
                 existing.std_hank_eff = std_hank_eff
                 existing.conversion_factor = preview_cf
                 existing.conv_40s_factor = conv_40s_factor
 
-
                 st.success("✔ Count Updated Successfully")
 
             else:
-                # CREATE NEW
                 new_c = CountMaster(
                     mill_id=mill_id,
                     count_name=count_name.strip(),
@@ -85,6 +107,7 @@ def count_master_page():
                     spinning_count_eff=spinning_eff,
                     std_hank_eff=std_hank_eff,
                     conversion_factor=preview_cf,
+                    conv_40s_factor=conv_40s_factor,
                 )
                 session.add(new_c)
                 st.success("✔ New Count Added Successfully")
@@ -94,7 +117,7 @@ def count_master_page():
     st.divider()
 
     # -------------------------------------------------------
-    # EXISTING COUNTS TABLE (Editable)
+    # EXISTING COUNTS TABLE
     # -------------------------------------------------------
     st.subheader("📄 Existing Counts")
 
@@ -117,6 +140,7 @@ def count_master_page():
             "Spinning Count Efficiency (%)": float(c.spinning_count_eff or 0),
             "Std Hank Efficiency (%)": float(c.std_hank_eff or 0),
             "Conversion Factor": float(c.conversion_factor or 0),
+            "40s Conv Factor": float(c.conv_40s_factor or 0),
         }
         for c in counts
     ])
@@ -128,12 +152,21 @@ def count_master_page():
         column_config={
             "ID": st.column_config.NumberColumn(disabled=True),
             "Mill": st.column_config.TextColumn(disabled=True),
-            "Conversion Factor": st.column_config.NumberColumn(disabled=True),
+            "Count Name": st.column_config.TextColumn(disabled=True),
+
+            # DISPLAY FORMATTED – DB NOT ROUNDED
+            "Conversion Factor": st.column_config.NumberColumn(
+                format="%.6f",
+                disabled=True
+            ),
+            "40s Conv Factor": st.column_config.NumberColumn(
+                format="%.6f"
+            ),
         }
     )
 
     # -------------------------------------------------------
-    # SAVE UPDATED GRID VALUES
+    # SAVE GRID UPDATES
     # -------------------------------------------------------
     if st.button("💾 Update Count Records"):
 
@@ -143,12 +176,17 @@ def count_master_page():
                 c.actual_count = safe_float(row["Actual Count"])
                 c.spinning_count_eff = safe_float(row["Spinning Count Efficiency (%)"])
                 c.std_hank_eff = safe_float(row["Std Hank Efficiency (%)"])
+
+                # recalculated system factor
                 c.conversion_factor = calc_conversion_factor(
                     c.actual_count,
                     c.spinning_count_eff,
                 )
 
-        session.commit()
-        st.success("✔ Count Master Updated")
+                # ✅ SAVE USER-EDITED 40s FACTOR
+                c.conv_40s_factor = safe_float(row["40s Conv Factor"])
 
-        st.info("Machine Master & Daily Entry will now auto-update with latest values.")
+        session.commit()
+        st.success("✔ Count Master Updated Successfully")
+
+        st.info("Machine Master, Daily Entry & Dashboard now reflect latest values.")
