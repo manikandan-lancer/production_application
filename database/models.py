@@ -35,7 +35,10 @@ class CountMaster(Base):
     spinning_count_eff = Column(Numeric(10, 2))
     std_hank_eff = Column(Numeric(10, 2))
 
-    conversion_factor = Column(Numeric(10, 6))
+    conversion_factor = Column(Numeric(12, 6))
+
+    # ✅ NEW
+    conv_40s_factor = Column(Numeric(12, 6))  # user entered
 
     mill = relationship("Mill", back_populates="counts")
     machines = relationship("Machine", back_populates="allocated_count")
@@ -95,6 +98,22 @@ class DailyProduction(Base):
     target_kgs = Column(Numeric(10, 2))
     actual_prdn = Column(Numeric(10, 2))
     waste_percent = Column(Numeric(10, 2))
+
+    std_gps = Column(Numeric(12, 6))
+    actual_gps = Column(Numeric(12, 6))
+    diff_gps = Column(Numeric(12, 6))
+    conv_40s_gps = Column(Numeric(12, 6))
+
+    woh = Column(Numeric(10, 2))
+    mw = Column(Numeric(10, 2))
+    clg_lc = Column(Numeric(10, 2))
+    er = Column(Numeric(10, 2))
+    la_pf = Column(Numeric(10, 2))
+    bss = Column(Numeric(10, 2))
+    lap = Column(Numeric(10, 2))
+    dd = Column(Numeric(10, 2))
+
+    total_loss = Column(Numeric(12, 2))
 
     remarks = Column(String)
 
