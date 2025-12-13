@@ -60,11 +60,11 @@ def calc_waste_percent(pne_bondas, prod_kgs):
     return (safe_float(pne_bondas) / prod) * 100
 
 def calc_std_gps(target_kgs, spindles):
-    return (safe_float(target_kgs) * safe_float(spindles)) / 100
+    return (safe_float(target_kgs) / safe_float(spindles)) * 1000
 
 
 def calc_actual_gps(actual_prdn, worked_spindles):
-    return (safe_float(actual_prdn) * safe_float(worked_spindles)) / 1000
+    return (safe_float(actual_prdn) / safe_float(worked_spindles)) * 1000
 
 
 def calc_diff_gps(std_gps, actual_gps):
