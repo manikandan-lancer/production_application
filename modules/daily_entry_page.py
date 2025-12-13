@@ -250,6 +250,7 @@ def daily_entry_page():
     # SAVE
     # ------------------------------------------------------
     if st.button("💾 Save Daily Production"):
+
         session.query(DailyProduction).filter(
             DailyProduction.date == date,
             DailyProduction.mill_id == mill_id,
@@ -260,7 +261,53 @@ def daily_entry_page():
         session.commit()
 
         for _, r in edited.iterrows():
-            session.add(DailyProduction(**r.to_dict()))
+            dp = DailyProduction(
+                date=date,
+                mill_id=mill_id,
+                department_id=dept_id,
+                shift_id=shift_id,
+
+                machine_id=r["machine_id"],
+                count_id=r["count_id"],
+
+                # machine snapshot
+                spindles=r["spindles"],
+                spdl_speed=r["speed"],
+                tpi=r["tpi"],
+                std_hank=r["std_hank"],
+                conversion_factor=r["conversion_factor"],
+
+                # user inputs
+                act_hank=r["act_hank"],
+                stop_min=r["stop_min"],
+                prod_kgs=r["prod_kgs"],
+                pne_bondas=r["pne_bondas"],
+
+                # calculated values
+                worked_spindles=r["worked_spindles"],
+                target_kgs=r["target_kgs"],
+                actual_prdn=r["actual_prdn"],
+                waste_percent=r["waste_percent"],
+
+                std_gps=r["std_gps"],
+                actual_gps=r["actual_gps"],
+                diff_gps=r["diff_gps"],
+                conv_40s_gps=r["conv_40s_gps"],
+
+                woh=r["woh"],
+                mw=r["mw"],
+                clg_lc=r["clg_lc"],
+                er=r["er"],
+                la_pf=r["la_pf"],
+                bss=r["bss"],
+                lap=r["lap"],
+                dd=r["dd"],
+                total_loss=r["total_loss"],
+
+                remarks=r["remarks"]
+            )
+
+            session.add(dp)
 
         session.commit()
         st.success("✅ Daily Production Saved Successfully")
