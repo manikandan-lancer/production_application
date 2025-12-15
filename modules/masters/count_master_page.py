@@ -3,7 +3,7 @@ import pandas as pd
 from sqlalchemy.orm import Session
 
 from database.connection import get_session
-from database.models import Mill, CountMaster
+from database.models import CountMaster
 from utils.calc_engine import safe_float, calc_conversion_factor
 
 
@@ -22,12 +22,6 @@ def count_master_page():
     """)
 
     # -------------------------------------------------------
-    # LOAD MILL MASTER
-    # -------------------------------------------------------
-    mills = session.query(Mill).all()
-    mill_map = {m.id: m.mill_name for m in mills}
-
-    # -------------------------------------------------------
     # ADD / UPDATE COUNT
     # -------------------------------------------------------
     st.subheader("➕ Add / Update Count")
@@ -36,19 +30,12 @@ def count_master_page():
         col1, col2 = st.columns(2)
 
         with col1:
-            mill_id = st.selectbox(
-                "Mill",
-                mill_map.keys(),
-                format_func=lambda x: mill_map[x]
-            )
-            count_name = st.text_input("Count Name (e.g. 40s, 60s)")
-
-        with col2:
             actual_count = st.number_input(
                 "Actual Count",
                 min_value=0.0,
                 step=0.01
             )
+            count_name = st.text_input("Count Name (e.g. 40s, 60s)")
 
             spinning_eff = st.number_input(
                 "Spinning Count Efficiency (%)",
@@ -84,7 +71,6 @@ def count_master_page():
             existing = (
                 session.query(CountMaster)
                 .filter(
-                    CountMaster.mill_id == mill_id,
                     CountMaster.count_name == count_name.strip(),
                 )
                 .first()
@@ -101,7 +87,6 @@ def count_master_page():
 
             else:
                 new_c = CountMaster(
-                    mill_id=mill_id,
                     count_name=count_name.strip(),
                     actual_count=actual_count,
                     spinning_count_eff=spinning_eff,
@@ -123,7 +108,7 @@ def count_master_page():
 
     counts = (
         session.query(CountMaster)
-        .order_by(CountMaster.mill_id, CountMaster.count_name)
+        .order_by(CountMaster.count_name)
         .all()
     )
 
@@ -134,7 +119,6 @@ def count_master_page():
     df = pd.DataFrame([
         {
             "ID": c.id,
-            "Mill": c.mill.mill_name,
             "Count Name": c.count_name,
             "Actual Count": float(c.actual_count or 0),
             "Spinning Count Efficiency (%)": float(c.spinning_count_eff or 0),
@@ -151,7 +135,6 @@ def count_master_page():
         use_container_width=True,
         column_config={
             "ID": st.column_config.NumberColumn(disabled=True),
-            "Mill": st.column_config.TextColumn(disabled=True),
             "Count Name": st.column_config.TextColumn(disabled=True),
 
             # DISPLAY FORMATTED – DB NOT ROUNDED
