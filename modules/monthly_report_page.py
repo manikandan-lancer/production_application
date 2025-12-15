@@ -80,15 +80,21 @@ def monthly_report_page():
     # -----------------------------------
     q = session.query(
         Machine.machine_name.label("Machine"),
+        CountMaster.count_name.label("Count"),
+
         func.sum(DailyProduction.target_kgs).label("Target Kgs"),
         func.sum(DailyProduction.prod_kgs).label("Prod Kgs"),
         func.sum(DailyProduction.actual_prdn).label("Actual Production"),
         func.sum(DailyProduction.stop_min).label("Stop Min"),
         func.sum(DailyProduction.pne_bondas).label("Pne Bondas"),
+
         func.avg(DailyProduction.waste_percent).label("Avg Waste %"),
         func.avg(DailyProduction.actual_gps).label("Avg Actual GPS"),
+
         func.sum(DailyProduction.total_loss).label("Total Loss"),
-    ).join(Machine, Machine.id == DailyProduction.machine_id)
+    ) \
+    .join(Machine, Machine.id == DailyProduction.machine_id) \
+    .join(CountMaster, CountMaster.id == DailyProduction.count_id)
 
     q = q.filter(DailyProduction.date >= start_date)
     q = q.filter(DailyProduction.date < end_date)
@@ -104,7 +110,7 @@ def monthly_report_page():
     if emp_id:
         q = q.filter(DailyProduction.employee_id == emp_id)
 
-    q = q.group_by(Machine.machine_name)
+    q = q.group_by(Machine.machine_name, CountMaster.count_name)
     rows = q.all()
 
     if not rows:
@@ -114,20 +120,15 @@ def monthly_report_page():
     # -----------------------------------
     # DATAFRAME
     # -----------------------------------
-    df = pd.DataFrame(rows, columns=[
-        "Machine", "Target Kgs", "Prod Kgs",
-        "Actual Production", "Stop Min",
-        "Pne Bondas", "Avg Waste %",
-        "Avg Actual GPS", "Total Loss"
-    ])
+    df = pd.DataFrame(rows)
 
     # -----------------------------------
-    # DISPLAY TABLE
+    # DISPLAY (UI ONLY → 4 DECIMALS)
     # -----------------------------------
     numeric_cols = df.select_dtypes(include=["float", "int"]).columns
 
     st.dataframe(
-        df.style.format({c: "{:.2f}" for c in numeric_cols}),
+        df.style.format({c: "{:.4f}" for c in numeric_cols}),
         use_container_width=True
     )
 
@@ -152,11 +153,13 @@ def monthly_report_page():
         st.metric("🔻 Total Loss", round(df["Total Loss"].sum(), 2))
 
     # -----------------------------------
-    # EXPORT
+    # EXPORT (NO ROUNDING)
     # -----------------------------------
+    export_df = df.copy()
+
     st.download_button(
         "⬇ Download Monthly CSV",
-        df.to_csv(index=False).encode("utf-8"),
-        f"monthly_report_{year}_{month}.csv",
+        export_df.to_csv(index=False).encode("utf-8"),
+        f"monthly_report_{year}_{month:02d}.csv",
         "text/csv"
     )
