@@ -215,6 +215,7 @@ def daily_entry_page():
         unsafe_allow_html=True
     )
 
+    st.info("(Actual Hank & Pne Bondas) columns are user input fields")
 
 
     edited = st.data_editor(
