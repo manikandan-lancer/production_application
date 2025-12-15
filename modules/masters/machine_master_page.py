@@ -21,7 +21,7 @@ def machine_master_page():
     - Spindles, Speed, TPI are fixed master values.
     - **STD Hank auto-calculates using Count Master:**
 
-      `STD = (Speed / TPI) × 0.01587394 × (Std Hank Efficiency / 100)`
+      `STD = (Speed / TPI) × 0.01587394 × Std Hank Efficiency %`
     """)
 
     # -------------------------------------------------------
