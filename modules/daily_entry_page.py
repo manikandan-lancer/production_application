@@ -215,7 +215,6 @@ def daily_entry_page():
         unsafe_allow_html=True
     )
 
-    st.info("🟨 Yellow columns are user input fields (Actual Hank & Pne Bondas)")
 
 
     edited = st.data_editor(
