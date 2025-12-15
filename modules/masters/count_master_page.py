@@ -30,13 +30,14 @@ def count_master_page():
         col1, col2 = st.columns(2)
 
         with col1:
+            count_name = st.text_input("Count Name (e.g. 40s, 60s)")
             actual_count = st.number_input(
                 "Actual Count",
                 min_value=0.0,
                 step=0.01
             )
-            count_name = st.text_input("Count Name (e.g. 40s, 60s)")
 
+        with col2:
             spinning_eff = st.number_input(
                 "Spinning Count Efficiency (%)",
                 min_value=0.0,
