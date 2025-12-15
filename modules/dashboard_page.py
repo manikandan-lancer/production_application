@@ -65,42 +65,6 @@ def dashboard_page():
         )
 
     st.divider()
-    st.subheader("📌 Production Summary (Saved Data)")
-
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        st.metric("🎯 Total Target Kgs", round(df["Target Kgs"].sum(), 2))
-        st.metric("⚙️ Total Prod Kgs", round(df["Prod Kgs"].sum(), 2))
-
-    with col2:
-        st.metric("⏱️ Total Stop Min", round(df["Stop Min"].sum(), 2))
-        st.metric("🧵 Total Pne Bondas", round(df["Pne Bondas"].sum(), 2))
-
-    with col3:
-        st.metric("📦 Actual Production", round(df["Actual Production"].sum(), 2))
-
-    st.subheader("📉 Loss Summary")
-
-    loss_cols = ["W.O.H", "MW", "CLG/LC", "ER", "LA,PF", "BSS", "LAP", "DD"]
-
-    loss_totals = {
-        col: round(df[col].sum(), 2)
-        for col in loss_cols
-        if col in df.columns
-    }
-
-    loss_df = pd.DataFrame(
-        [{"Loss Type": k, "Total": v} for k, v in loss_totals.items()]
-    )
-
-    st.dataframe(loss_df, use_container_width=True)
-
-    st.metric(
-        "🔻 Total Loss",
-        round(df["Total"].sum(), 2)
-    )
-
 
     # -------------------------------
     # QUERY
@@ -125,7 +89,7 @@ def dashboard_page():
         return
 
     # -------------------------------
-    # BUILD DATAFRAME (MATCH DAILY ENTRY)
+    # BUILD DATAFRAME
     # -------------------------------
     data = []
 
@@ -184,7 +148,7 @@ def dashboard_page():
     df = pd.DataFrame(data)
 
     # -------------------------------
-    # DISPLAY (2 DECIMAL FORMAT ONLY)
+    # TABLE DISPLAY
     # -------------------------------
     numeric_cols = df.select_dtypes(include=["float", "int"]).columns
 
@@ -194,11 +158,45 @@ def dashboard_page():
     )
 
     # -------------------------------
+    # PRODUCTION SUMMARY
+    # -------------------------------
+    st.divider()
+    st.subheader("📌 Production Summary")
+
+    c1, c2, c3 = st.columns(3)
+
+    with c1:
+        st.metric("🎯 Total Target Kgs", round(df["Target Kgs"].sum(), 2))
+        st.metric("⚙️ Total Prod Kgs", round(df["Prod Kgs"].sum(), 2))
+
+    with c2:
+        st.metric("⏱️ Total Stop Min", round(df["Stop Min"].sum(), 2))
+        st.metric("🧵 Total Pne Bondas", round(df["Pne Bondas"].sum(), 2))
+
+    with c3:
+        st.metric("📦 Actual Production", round(df["Actual Production"].sum(), 2))
+
+    # -------------------------------
+    # LOSS SUMMARY
+    # -------------------------------
+    st.subheader("📉 Loss Summary")
+
+    loss_cols = ["W.O.H", "MW", "CLG/LC", "ER", "LA,PF", "BSS", "LAP", "DD"]
+
+    loss_df = pd.DataFrame(
+        [{"Loss Type": col, "Total": round(df[col].sum(), 2)} for col in loss_cols]
+    )
+
+    st.dataframe(loss_df, use_container_width=True)
+
+    st.metric("🔻 Total Loss", round(df["Total Loss"].sum(), 2))
+
+    # -------------------------------
     # EXPORT
     # -------------------------------
     st.download_button(
-        label="⬇ Download CSV",
-        data=df.to_csv(index=False).encode("utf-8"),
-        file_name="dashboard_export.csv",
-        mime="text/csv"
+        "⬇ Download CSV",
+        df.to_csv(index=False).encode("utf-8"),
+        "dashboard_export.csv",
+        "text/csv"
     )
