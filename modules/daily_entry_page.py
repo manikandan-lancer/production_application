@@ -268,6 +268,22 @@ def daily_entry_page():
     # LIVE EXCEL-STYLE CALCULATIONS
     # ------------------------------------------------------
     for i, r in edited.iterrows():
+        # -----------------------------
+        # INPUT SANITIZATION
+        # -----------------------------
+        act_hank = safe_float(r["act_hank"])
+        stop_min = safe_float(r["stop_min"])
+        pne_bondas = safe_float(r["pne_bondas"])
+
+        # Rule: If act_hank is 0 → stop_min = 480
+        if act_hank == 0:
+            stop_min = 480.0
+            edited.at[i, "stop_min"] = 480.0
+
+        # Ensure never empty
+        edited.at[i, "act_hank"] = act_hank
+        edited.at[i, "stop_min"] = stop_min
+        edited.at[i, "pne_bondas"] = pne_bondas
 
         worked = calc_worked_spindles(r["spindles"], r["stop_min"])
         edited.at[i, "worked_spindles"] = worked
@@ -296,6 +312,42 @@ def daily_entry_page():
             r["woh"], r["mw"], r["clg_lc"], r["er"],
             r["la_pf"], r["bss"], r["lap"], r["dd"]
         )
+
+    # ------------------------------------------------------
+    # 📌 PRODUCTION SUMMARY (PASTE HERE)
+    # ------------------------------------------------------
+    st.divider()
+    st.subheader("📌 Production Summary")
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.metric("🎯 Total Target Kgs", round(edited["target_kgs"].sum(), 2))
+        st.metric("⚙️ Total Prod Kgs", round(edited["prod_kgs"].sum(), 2))
+
+    with col2:
+        st.metric("⏱️ Total Stop Min", round(edited["stop_min"].sum(), 2))
+        st.metric("🧵 Total Pne Bondas", round(edited["pne_bondas"].sum(), 2))
+
+    with col3:
+        st.metric("📦 Actual Production", round(edited["actual_prdn"].sum(), 2))
+
+    st.subheader("📉 Loss Summary")
+
+    loss_cols = ["woh", "mw", "clg_lc", "er", "la_pf", "bss", "lap", "dd"]
+
+    loss_totals = {col: round(edited[col].sum(), 2) for col in loss_cols}
+
+    loss_df = pd.DataFrame(
+        [{"Loss Type": k.upper(), "Total": v} for k, v in loss_totals.items()]
+    )
+
+    st.dataframe(loss_df, use_container_width=True)
+
+    st.metric(
+        "🔻 Total Loss",
+        round(edited["total_loss"].sum(), 2)
+    )
 
     # ------------------------------------------------------
     # SAVE

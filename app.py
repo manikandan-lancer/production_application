@@ -2,12 +2,13 @@ import streamlit as st
 from modules.master_page import master_page
 from modules.daily_entry_page import daily_entry_page
 from modules.dashboard_page import dashboard_page
+from modules.monthly_report_page import monthly_report_page
 
 st.sidebar.title("Navigation")
 
 menu = st.sidebar.radio(
     "Go to:",
-    ["Home", "Masters", "Daily Entry", "Dashboard"]
+    ["Home", "Masters", "Daily Entry", "Dashboard", "Monthly Report"]
 )
 
 if menu == "Home":
@@ -22,3 +23,6 @@ elif menu == "Daily Entry":
 
 elif menu == "Dashboard":
     dashboard_page()
+
+elif menu == "Monthly Report":
+    monthly_report_page()
