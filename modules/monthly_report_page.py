@@ -111,6 +111,7 @@ def monthly_report_page():
         q = q.filter(DailyProduction.employee_id == emp_id)
 
     q = q.group_by(Machine.machine_name, CountMaster.count_name)
+
     rows = q.all()
 
     if not rows:
@@ -118,19 +119,19 @@ def monthly_report_page():
         return
 
     # -----------------------------------
-    # DATAFRAME
+    # DATAFRAME (RAW)
     # -----------------------------------
     df = pd.DataFrame(rows)
 
     # -----------------------------------
     # DISPLAY (UI ONLY → 4 DECIMALS)
     # -----------------------------------
-    numeric_cols = df.select_dtypes(include=["float", "int"]).columns
+    display_df = df.copy()
 
-    st.dataframe(
-        df.style.format({c: "{:.4f}" for c in numeric_cols}),
-        use_container_width=True
-    )
+    numeric_cols = display_df.select_dtypes(include=["float", "int"]).columns
+    display_df[numeric_cols] = display_df[numeric_cols].round(4)
+
+    st.dataframe(display_df, use_container_width=True)
 
     # -----------------------------------
     # MONTHLY SUMMARY
