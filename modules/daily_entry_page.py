@@ -202,14 +202,65 @@ def daily_entry_page():
         "total_loss"
     ]
 
+    st.markdown(
+        """
+        <style>
+        /* Highlight user-input columns */
+        div[data-testid="stDataEditor"] tbody tr td:nth-child(10),
+        div[data-testid="stDataEditor"] tbody tr td:nth-child(13) {
+            background-color: #fff7cc !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+    st.info("🟨 Yellow columns are user input fields (Actual Hank & Pne Bondas)")
+
+
     edited = st.data_editor(
         df,
         disabled=readonly,
         use_container_width=True,
         column_config={
-            col: st.column_config.NumberColumn(format="%.2f")
-            for col in df.columns
-            if df[col].dtype != object
+            # -------- USER INPUT (HIGHLIGHTED) --------
+            "act_hank": st.column_config.NumberColumn(
+                "Actual Hank",
+                format="%.2f",
+                help="Enter Actual Hank"
+            ),
+            "pne_bondas": st.column_config.NumberColumn(
+                "Pne Bondas",
+                format="%.2f",
+                help="Enter Pne Bondas"
+            ),
+            "stop_min": st.column_config.NumberColumn(format="%.2f"),
+
+            # -------- DISPLAY ONLY (NO ROUNDING IN LOGIC) --------
+            "std_hank": st.column_config.NumberColumn(format="%.2f"),
+            "conversion_factor": st.column_config.NumberColumn(format="%.6f"),
+            "conv_40s_factor": st.column_config.NumberColumn(format="%.6f"),
+
+            "worked_spindles": st.column_config.NumberColumn(format="%.2f"),
+            "target_kgs": st.column_config.NumberColumn(format="%.2f"),
+            "prod_kgs": st.column_config.NumberColumn(format="%.2f"),
+            "actual_prdn": st.column_config.NumberColumn(format="%.2f"),
+            "waste_percent": st.column_config.NumberColumn(format="%.2f"),
+
+            "std_gps": st.column_config.NumberColumn(format="%.2f"),
+            "actual_gps": st.column_config.NumberColumn(format="%.2f"),
+            "diff_gps": st.column_config.NumberColumn(format="%.2f"),
+            "conv_40s_gps": st.column_config.NumberColumn(format="%.2f"),
+
+            "woh": st.column_config.NumberColumn(format="%.2f"),
+            "mw": st.column_config.NumberColumn(format="%.2f"),
+            "clg_lc": st.column_config.NumberColumn(format="%.2f"),
+            "er": st.column_config.NumberColumn(format="%.2f"),
+            "la_pf": st.column_config.NumberColumn(format="%.2f"),
+            "bss": st.column_config.NumberColumn(format="%.2f"),
+            "lap": st.column_config.NumberColumn(format="%.2f"),
+            "dd": st.column_config.NumberColumn(format="%.2f"),
+            "total_loss": st.column_config.NumberColumn(format="%.2f"),
         }
     )
 
