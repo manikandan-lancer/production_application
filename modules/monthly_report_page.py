@@ -21,9 +21,24 @@ def monthly_report_page():
     # -----------------------------------
     col1, col2, col3 = st.columns(3)
 
+    today = date.today()
+    current_year = today.year
+    current_month = today.month
+
     with col1:
-        year = st.selectbox("Year", list(range(2022, date.today().year + 1)))
-        month = st.selectbox("Month", list(range(1, 13)))
+        year_list = list(range(2022, current_year + 1))
+        year = st.selectbox(
+            "Year",
+            year_list,
+            index=year_list.index(current_year)  # ✅ default current year
+        )
+
+        month_list = list(range(1, 13))
+        month = st.selectbox(
+            "Month",
+            month_list,
+            index=month_list.index(current_month)  # ✅ default current month
+        )
 
     with col2:
         mills = session.query(Mill).all()
