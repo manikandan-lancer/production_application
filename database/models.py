@@ -69,6 +69,7 @@ class Employee(Base):
     id = Column(Integer, primary_key=True)
     employee_no = Column(String, nullable=False)
     employee_name = Column(String, nullable=False)
+    designation = Column(String, nullable=True)
 
 
 class DailyProduction(Base):
