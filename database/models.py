@@ -70,6 +70,9 @@ class Employee(Base):
     employee_no = Column(String, nullable=False)
     employee_name = Column(String, nullable=False)
     designation = Column(String, nullable=True)
+    mill_id = Column(Integer, ForeignKey("mill_master.id"), nullable=False)
+
+    mill = relationship("Mill")
 
 
 class DailyProduction(Base):
