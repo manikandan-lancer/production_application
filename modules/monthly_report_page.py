@@ -125,7 +125,11 @@ def monthly_report_page():
     if emp_id:
         q = q.filter(DailyProduction.employee_id == emp_id)
 
-    q = q.group_by(Machine.machine_name, CountMaster.count_name)
+    q = (
+        q.group_by(Machine.machine_name, CountMaster.count_name)
+        .order_by(Machine.machine_name.asc(), CountMaster.count_name.asc())
+    )
+
 
     rows = q.all()
 
