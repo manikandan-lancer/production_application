@@ -43,20 +43,17 @@ def daily_entry_page():
     with colB:
         mills = session.query(Mill).all()
         mill_map = {m.id: m.mill_name for m in mills}
-        mill_id = st.selectbox("Mill", mill_map.keys(),
-                               format_func=lambda x: mill_map[x])
+        mill_id = st.selectbox("Mill", mill_map.keys(), format_func=lambda x: mill_map[x])
 
     with colC:
         depts = session.query(Department).all()
         dept_map = {d.id: d.department_name for d in depts}
-        dept_id = st.selectbox("Department", dept_map.keys(),
-                               format_func=lambda x: dept_map[x])
+        dept_id = st.selectbox("Department", dept_map.keys(), format_func=lambda x: dept_map[x])
 
     with colD:
         shifts = session.query(Shift).all()
         shift_map = {s.id: s.shift_name for s in shifts}
-        shift_id = st.selectbox("Shift", shift_map.keys(),
-                                format_func=lambda x: shift_map[x])
+        shift_id = st.selectbox("Shift", shift_map.keys(), format_func=lambda x: shift_map[x])
 
     st.divider()
 
@@ -65,10 +62,7 @@ def daily_entry_page():
     # ------------------------------------------------------
     machines = (
         session.query(Machine)
-        .filter(
-            Machine.mill_id == mill_id,
-            Machine.department_id == dept_id
-        )
+        .filter(Machine.mill_id == mill_id, Machine.department_id == dept_id)
         .order_by(Machine.machine_name)
         .all()
     )
@@ -91,8 +85,19 @@ def daily_entry_page():
 
     if saved:
         for r in saved:
-            machine = session.query(Machine).get(r.machine_id)
-            count = session.query(CountMaster).get(r.count_id)
+            machine = session.get(Machine, r.machine_id)
+            count = session.get(CountMaster, r.count_id)
+
+            # 🔹 master reference
+            master_speed = machine.spdl_speed if machine else 0
+            master_tpi = machine.tpi if machine else 0
+            master_count = machine.allocated_count_id if machine else None
+
+            overridden = (
+                r.spdl_speed != master_speed
+                or r.tpi != master_tpi
+                or r.count_id != master_count
+            )
 
             rows.append({
                 "machine_id": r.machine_id,
@@ -109,12 +114,11 @@ def daily_entry_page():
                 "conv_40s_factor": safe_float(count.conv_40s_factor) if count else 0,
 
                 "act_hank": r.act_hank,
-                "stop_min": r.stop_min,
-                "prod_kgs": r.prod_kgs,
                 "pne_bondas": r.pne_bondas,
 
                 "worked_spindles": r.worked_spindles,
                 "target_kgs": r.target_kgs,
+                "prod_kgs": r.prod_kgs,
                 "actual_prdn": r.actual_prdn,
                 "waste_percent": r.waste_percent,
 
@@ -132,18 +136,18 @@ def daily_entry_page():
                 "lap": r.lap,
                 "dd": r.dd,
                 "total_loss": r.total_loss,
+                "stop_min": r.stop_min,
 
+                # ✅ OVERRIDE BADGE
+                "Override": "⚠ Modified from Master" if overridden else "✔ Master",
                 "remarks": r.remarks or "",
             })
 
     else:
         for m in machines:
-            cnt = session.query(CountMaster).get(m.allocated_count_id)
+            cnt = session.get(CountMaster, m.allocated_count_id)
 
             std_eff = safe_float(cnt.std_hank_eff) if cnt else 0
-            conv = safe_float(cnt.conversion_factor) if cnt else 0
-            conv40 = safe_float(cnt.conv_40s_factor) if cnt else 0
-
             std_hank = calc_std_hank(m.spdl_speed, m.tpi, std_eff)
 
             rows.append({
@@ -157,16 +161,15 @@ def daily_entry_page():
 
                 "count_id": m.allocated_count_id,
                 "count_name": cnt.count_name if cnt else "",
-                "conversion_factor": conv,
-                "conv_40s_factor": conv40,
+                "conversion_factor": safe_float(cnt.conversion_factor) if cnt else 0,
+                "conv_40s_factor": safe_float(cnt.conv_40s_factor) if cnt else 0,
 
                 "act_hank": 0.0,
-                "stop_min": 0.0,
-                "prod_kgs": 0.0,
                 "pne_bondas": 0.0,
 
                 "worked_spindles": 0.0,
                 "target_kgs": 0.0,
+                "prod_kgs": 0.0,
                 "actual_prdn": 0.0,
                 "waste_percent": 0.0,
 
@@ -184,121 +187,58 @@ def daily_entry_page():
                 "lap": 0.0,
                 "dd": 0.0,
                 "total_loss": 0.0,
+                "stop_min": 0.0,
 
+                "Override": "✔ Master",
                 "remarks": "",
             })
 
     df = pd.DataFrame(rows)
 
     # ------------------------------------------------------
-    # DATA EDITOR (2 DECIMAL DISPLAY ONLY)
+    # DATA EDITOR
     # ------------------------------------------------------
     readonly = [
-        "machine_name", "spindles", "speed", "tpi",
-        "std_hank", "count_name", "conversion_factor",
-        "worked_spindles", "target_kgs",
-        "actual_prdn", "waste_percent",
-        "std_gps", "actual_gps", "diff_gps", "conv_40s_gps",
-        "total_loss"
+        "machine_name", "spindles", "std_hank",
+        "conversion_factor", "worked_spindles",
+        "target_kgs", "actual_prdn", "waste_percent",
+        "std_gps", "actual_gps", "diff_gps",
+        "conv_40s_gps", "total_loss", "stop_min",
+        "Override"
     ]
-
-    st.markdown(
-        """
-        <style>
-        /* Highlight user-input columns */
-        div[data-testid="stDataEditor"] tbody tr td:nth-child(10),
-        div[data-testid="stDataEditor"] tbody tr td:nth-child(13) {
-            background-color: #fff7cc !important;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
-    st.info("Actual Hank, Stop Min, Pne Bondas & Loss columns are user input fields")
-
 
     edited = st.data_editor(
         df,
         disabled=readonly,
         use_container_width=True,
-        column_config={
-            # -------- USER INPUT (HIGHLIGHTED) --------
-            "act_hank": st.column_config.NumberColumn(
-                "Actual Hank",
-                format="%.2f",
-                help="Enter Actual Hank"
-            ),
-            "pne_bondas": st.column_config.NumberColumn(
-                "Pne Bondas",
-                format="%.2f",
-                help="Enter Pne Bondas"
-            ),
-            "stop_min": st.column_config.NumberColumn(format="%.2f"),
-
-            # -------- DISPLAY ONLY (NO ROUNDING IN LOGIC) --------
-            "std_hank": st.column_config.NumberColumn(format="%.2f"),
-            "conversion_factor": st.column_config.NumberColumn(format="%.6f"),
-            "conv_40s_factor": st.column_config.NumberColumn(format="%.6f"),
-
-            "worked_spindles": st.column_config.NumberColumn(format="%.2f"),
-            "target_kgs": st.column_config.NumberColumn(format="%.2f"),
-            "prod_kgs": st.column_config.NumberColumn(format="%.2f"),
-            "actual_prdn": st.column_config.NumberColumn(format="%.2f"),
-            "waste_percent": st.column_config.NumberColumn(format="%.2f"),
-
-            "std_gps": st.column_config.NumberColumn(format="%.2f"),
-            "actual_gps": st.column_config.NumberColumn(format="%.2f"),
-            "diff_gps": st.column_config.NumberColumn(format="%.2f"),
-            "conv_40s_gps": st.column_config.NumberColumn(format="%.2f"),
-
-            "woh": st.column_config.NumberColumn(format="%.2f"),
-            "mw": st.column_config.NumberColumn(format="%.2f"),
-            "clg_lc": st.column_config.NumberColumn(format="%.2f"),
-            "er": st.column_config.NumberColumn(format="%.2f"),
-            "la_pf": st.column_config.NumberColumn(format="%.2f"),
-            "bss": st.column_config.NumberColumn(format="%.2f"),
-            "lap": st.column_config.NumberColumn(format="%.2f"),
-            "dd": st.column_config.NumberColumn(format="%.2f"),
-            "total_loss": st.column_config.NumberColumn(format="%.2f"),
-        }
     )
 
     # ------------------------------------------------------
-    # LIVE EXCEL-STYLE CALCULATIONS
+    # LIVE CALCULATIONS
     # ------------------------------------------------------
     for i, r in edited.iterrows():
-        # -----------------------------
-        # INPUT SANITIZATION
-        # -----------------------------
         act_hank = safe_float(r["act_hank"])
-        stop_min = safe_float(r["stop_min"])
-        pne_bondas = safe_float(r["pne_bondas"])
+        pne = safe_float(r["pne_bondas"])
 
-        # Rule: If act_hank is 0 → stop_min = 480
-        if act_hank == 0:
-            stop_min = 480.0
-            edited.at[i, "stop_min"] = 480.0
+        total_loss = calc_total_loss(
+            r["woh"], r["mw"], r["clg_lc"], r["er"],
+            r["la_pf"], r["bss"], r["lap"], r["dd"]
+        )
 
-        # Ensure never empty
-        edited.at[i, "act_hank"] = act_hank
-        edited.at[i, "stop_min"] = stop_min
-        edited.at[i, "pne_bondas"] = pne_bondas
+        edited.at[i, "total_loss"] = total_loss
+        edited.at[i, "stop_min"] = total_loss
 
-        worked = calc_worked_spindles(r["spindles"], r["stop_min"])
+        worked = calc_worked_spindles(r["spindles"], total_loss)
         edited.at[i, "worked_spindles"] = worked
 
         target = calc_target_kgs(r["conversion_factor"], r["spindles"], r["std_hank"])
+        prod = calc_prod_kgs(r["conversion_factor"], r["spindles"], act_hank)
+        actual = calc_actual_prdn(prod, pne)
+
         edited.at[i, "target_kgs"] = target
-
-        prod = calc_prod_kgs(r["conversion_factor"], r["spindles"], r["act_hank"])
         edited.at[i, "prod_kgs"] = prod
-
-        actual = calc_actual_prdn(prod, r["pne_bondas"])
         edited.at[i, "actual_prdn"] = actual
-
-        waste = calc_waste_percent(r["pne_bondas"], prod)
-        edited.at[i, "waste_percent"] = waste
+        edited.at[i, "waste_percent"] = calc_waste_percent(pne, prod)
 
         std_gps = calc_std_gps(target, r["spindles"])
         actual_gps = calc_actual_gps(actual, worked)
@@ -308,52 +248,10 @@ def daily_entry_page():
         edited.at[i, "diff_gps"] = calc_diff_gps(std_gps, actual_gps)
         edited.at[i, "conv_40s_gps"] = calc_40s_conv_gps(r["conv_40s_factor"], actual_gps)
 
-        edited.at[i, "total_loss"] = calc_total_loss(
-            r["woh"], r["mw"], r["clg_lc"], r["er"],
-            r["la_pf"], r["bss"], r["lap"], r["dd"]
-        )
-
-    # ------------------------------------------------------
-    # 📌 PRODUCTION SUMMARY (PASTE HERE)
-    # ------------------------------------------------------
-    st.divider()
-    st.subheader("📌 Production Summary")
-
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        st.metric("🎯 Total Target Kgs", round(edited["target_kgs"].sum(), 2))
-        st.metric("⚙️ Total Prod Kgs", round(edited["prod_kgs"].sum(), 2))
-
-    with col2:
-        st.metric("⏱️ Total Stop Min", round(edited["stop_min"].sum(), 2))
-        st.metric("🧵 Total Pne Bondas", round(edited["pne_bondas"].sum(), 2))
-
-    with col3:
-        st.metric("📦 Actual Production", round(edited["actual_prdn"].sum(), 2))
-
-    st.subheader("📉 Loss Summary")
-
-    loss_cols = ["woh", "mw", "clg_lc", "er", "la_pf", "bss", "lap", "dd"]
-
-    loss_totals = {col: round(edited[col].sum(), 2) for col in loss_cols}
-
-    loss_df = pd.DataFrame(
-        [{"Loss Type": k.upper(), "Total": v} for k, v in loss_totals.items()]
-    )
-
-    st.dataframe(loss_df, use_container_width=True)
-
-    st.metric(
-        "🔻 Total Loss",
-        round(edited["total_loss"].sum(), 2)
-    )
-
     # ------------------------------------------------------
     # SAVE
     # ------------------------------------------------------
     if st.button("💾 Save Daily Production"):
-
         session.query(DailyProduction).filter(
             DailyProduction.date == date,
             DailyProduction.mill_id == mill_id,
@@ -361,42 +259,31 @@ def daily_entry_page():
             DailyProduction.shift_id == shift_id,
         ).delete()
 
-        session.commit()
-
         for _, r in edited.iterrows():
-            dp = DailyProduction(
+            session.add(DailyProduction(
                 date=date,
                 mill_id=mill_id,
                 department_id=dept_id,
                 shift_id=shift_id,
-
                 machine_id=r["machine_id"],
                 count_id=r["count_id"],
-
-                # machine snapshot
                 spindles=r["spindles"],
                 spdl_speed=r["speed"],
                 tpi=r["tpi"],
                 std_hank=r["std_hank"],
                 conversion_factor=r["conversion_factor"],
-
-                # user inputs
                 act_hank=r["act_hank"],
                 stop_min=r["stop_min"],
                 prod_kgs=r["prod_kgs"],
                 pne_bondas=r["pne_bondas"],
-
-                # calculated values
                 worked_spindles=r["worked_spindles"],
                 target_kgs=r["target_kgs"],
                 actual_prdn=r["actual_prdn"],
                 waste_percent=r["waste_percent"],
-
                 std_gps=r["std_gps"],
                 actual_gps=r["actual_gps"],
                 diff_gps=r["diff_gps"],
                 conv_40s_gps=r["conv_40s_gps"],
-
                 woh=r["woh"],
                 mw=r["mw"],
                 clg_lc=r["clg_lc"],
@@ -406,11 +293,8 @@ def daily_entry_page():
                 lap=r["lap"],
                 dd=r["dd"],
                 total_loss=r["total_loss"],
-
                 remarks=r["remarks"]
-            )
-
-            session.add(dp)
+            ))
 
         session.commit()
         st.success("✅ Daily Production Saved Successfully")
