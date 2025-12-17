@@ -19,9 +19,7 @@ def machine_master_page():
 
     **Rules:**
     - Spindles, Speed, TPI are fixed master values.
-    - **STD Hank auto-calculates using Count Master:**
-
-      `STD = (Speed / TPI) × 0.01587394 × Std Hank Efficiency %`
+    - **STD Hank auto-calculates using Count Master efficiency**
     """)
 
     # -------------------------------------------------------
@@ -46,7 +44,7 @@ def machine_master_page():
         with c1:
             mill_id = st.selectbox("Mill", mill_map.keys(), format_func=lambda x: mill_map[x])
             dept_id = st.selectbox("Department", dept_map.keys(), format_func=lambda x: dept_map[x])
-            machine_name = st.text_input("Machine Name (e.g., A01, B05)")
+            machine_name = st.text_input("Machine Name")
 
         with c2:
             spindles = st.number_input("No. of Spindles", min_value=0, step=1)
@@ -59,23 +57,20 @@ def machine_master_page():
                 format_func=lambda x: "" if x is None else count_map[x],
             )
 
-        # ---- STD HANK PREVIEW ----
         std_eff = 0
         if allocated_count_id:
-            cobj = session.query(CountMaster).filter_by(id=allocated_count_id).first()
+            cobj = session.get(CountMaster, allocated_count_id)
             std_eff = safe_float(cobj.std_hank_eff)
 
         std_preview = calc_std_hank(spdl_speed, tpi, std_eff)
         st.write(f"📘 **STD Hank Preview:** `{std_preview}`")
 
-        submit = st.form_submit_button("💾 Save Machine")
-
-        if submit:
+        if st.form_submit_button("💾 Save Machine"):
             if not machine_name.strip():
                 st.error("Machine Name cannot be empty.")
                 return
 
-            new_m = Machine(
+            session.add(Machine(
                 mill_id=mill_id,
                 department_id=dept_id,
                 machine_name=machine_name.strip(),
@@ -83,18 +78,14 @@ def machine_master_page():
                 spdl_speed=spdl_speed,
                 tpi=tpi,
                 allocated_count_id=allocated_count_id,
-            )
-
-            # STD Hank is stored at daily entry time; we DO NOT store it in Machine table now.
-            session.add(new_m)
+            ))
             session.commit()
-
             st.success("✔ Machine Added Successfully")
 
     st.divider()
 
     # -------------------------------------------------------
-    # EXISTING MACHINE GRID
+    # EXISTING MACHINES
     # -------------------------------------------------------
     st.subheader("📄 Existing Machines")
 
@@ -104,21 +95,10 @@ def machine_master_page():
         .all()
     )
 
-    if not machines:
-        st.warning("No machines found.")
-        return
-
     rows = []
-
     for m in machines:
-        c = session.query(CountMaster).filter_by(id=m.allocated_count_id).first()
+        c = session.get(CountMaster, m.allocated_count_id)
         std_eff = safe_float(c.std_hank_eff) if c else 0
-
-        std_hank_calc = calc_std_hank(
-            safe_float(m.spdl_speed),
-            safe_float(m.tpi),
-            std_eff,
-        )
 
         rows.append({
             "ID": m.id,
@@ -130,7 +110,7 @@ def machine_master_page():
             "TPI": float(m.tpi or 0),
             "Allocated Count": m.allocated_count_id,
             "Count Name": c.count_name if c else "",
-            "STD Hank (Auto)": std_hank_calc,
+            "STD Hank (Auto)": calc_std_hank(m.spdl_speed, m.tpi, std_eff),
         })
 
     df = pd.DataFrame(rows)
@@ -149,20 +129,31 @@ def machine_master_page():
     )
 
     # -------------------------------------------------------
-    # SAVE TABLE UPDATES
+    # 🔁 LIVE STD HANK RECALC (CRITICAL ADDITION)
+    # -------------------------------------------------------
+    for i, r in editor.iterrows():
+        count_id = r["Allocated Count"]
+        count_obj = session.get(CountMaster, count_id) if count_id else None
+        std_eff = safe_float(count_obj.std_hank_eff) if count_obj else 0
+
+        editor.at[i, "STD Hank (Auto)"] = calc_std_hank(
+            safe_float(r["Speed"]),
+            safe_float(r["TPI"]),
+            std_eff
+        )
+
+    # -------------------------------------------------------
+    # SAVE UPDATES
     # -------------------------------------------------------
     if st.button("💾 Update Machine Records"):
-
-        for _, row in editor.iterrows():
-            m = session.query(Machine).filter_by(id=row["ID"]).first()
-
+        for _, r in editor.iterrows():
+            m = session.get(Machine, r["ID"])
             if m:
-                m.spindles = safe_float(row["Spindles"])
-                m.spdl_speed = safe_float(row["Speed"])
-                m.tpi = safe_float(row["TPI"])
-                m.allocated_count_id = row["Allocated Count"]
+                m.spindles = safe_float(r["Spindles"])
+                m.spdl_speed = safe_float(r["Speed"])
+                m.tpi = safe_float(r["TPI"])
+                m.allocated_count_id = r["Allocated Count"]
 
         session.commit()
         st.success("✔ Machine Master Updated Successfully")
-
-        st.info("Daily Entry will automatically reflect updated machine constants.")
+        st.info("Daily Entry will reflect updated machine values")
