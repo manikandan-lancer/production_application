@@ -20,7 +20,7 @@ def dashboard_page():
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        date = st.date_input("Date")
+        date = st.date_input("Date", key="dashboard_date")
 
     with col2:
         mills = session.query(Mill).all()

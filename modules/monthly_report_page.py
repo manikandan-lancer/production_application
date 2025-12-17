@@ -45,7 +45,8 @@ def monthly_report_page():
         mill_map = {m.id: m.mill_name for m in mills}
         mill_id = st.selectbox(
             "Mill", [None] + list(mill_map.keys()),
-            format_func=lambda x: "All" if x is None else mill_map[x]
+            format_func=lambda x: "All" if x is None else mill_map[x],
+            key="monthly_mill"
         )
 
     with col3:
@@ -53,7 +54,8 @@ def monthly_report_page():
         dept_map = {d.id: d.department_name for d in depts}
         dept_id = st.selectbox(
             "Department", [None] + list(dept_map.keys()),
-            format_func=lambda x: "All" if x is None else dept_map[x]
+            format_func=lambda x: "All" if x is None else dept_map[x],
+            key="monthly_dept"
         )
 
     col4, col5, col6 = st.columns(3)
@@ -63,7 +65,8 @@ def monthly_report_page():
         shift_map = {s.id: s.shift_name for s in shifts}
         shift_id = st.selectbox(
             "Shift", [None] + list(shift_map.keys()),
-            format_func=lambda x: "All" if x is None else shift_map[x]
+            format_func=lambda x: "All" if x is None else shift_map[x],
+            key="monthly_shift"
         )
 
     with col5:
@@ -71,7 +74,8 @@ def monthly_report_page():
         count_map = {c.id: c.count_name for c in counts}
         count_id = st.selectbox(
             "Count", [None] + list(count_map.keys()),
-            format_func=lambda x: "All" if x is None else count_map[x]
+            format_func=lambda x: "All" if x is None else count_map[x],
+            key="monthly_count"
         )
 
     with col6:
@@ -79,7 +83,8 @@ def monthly_report_page():
         emp_map = {e.id: f"{e.employee_no} - {e.employee_name}" for e in employees}
         emp_id = st.selectbox(
             "Employee", [None] + list(emp_map.keys()),
-            format_func=lambda x: "All" if x is None else emp_map[x]
+            format_func=lambda x: "All" if x is None else emp_map[x],
+            key="monthly_emp"
         )
 
     st.divider()
@@ -176,6 +181,11 @@ def monthly_report_page():
     # EXPORT (NO ROUNDING)
     # -----------------------------------
     export_df = df.copy()
+
+    export_df = export_df.sort_values(
+        by=["Machine", "Count"],
+        ascending=[True, True]
+    )
 
     st.download_button(
         "⬇ Download Monthly CSV",
