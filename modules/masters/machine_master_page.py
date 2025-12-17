@@ -89,11 +89,45 @@ def machine_master_page():
     # -------------------------------------------------------
     st.subheader("📄 Existing Machines")
 
+    # ----------------------------------
+    # FILTERS (NEW)
+    # ----------------------------------
+    fcol1, fcol2 = st.columns(2)
+
+    with fcol1:
+        filter_mill_id = st.selectbox(
+            "Filter by Mill",
+            [None] + list(mill_map.keys()),
+            format_func=lambda x: "All Mills" if x is None else mill_map[x],
+            key="machine_filter_mill"
+        )
+
+    with fcol2:
+        filter_dept_id = st.selectbox(
+            "Filter by Department",
+            [None] + list(dept_map.keys()),
+            format_func=lambda x: "All Departments" if x is None else dept_map[x],
+            key="machine_filter_dept"
+        )
+
+    st.divider()
+
+    q = session.query(Machine)
+
+    if filter_mill_id:
+        q = q.filter(Machine.mill_id == filter_mill_id)
+
+    if filter_dept_id:
+        q = q.filter(Machine.department_id == filter_dept_id)
+
     machines = (
-        session.query(Machine)
-        .order_by(Machine.mill_id, Machine.department_id, Machine.machine_name)
-        .all()
+        q.order_by(
+            Machine.mill_id,
+            Machine.department_id,
+            Machine.machine_name
+        ).all()
     )
+
 
     rows = []
     for m in machines:
