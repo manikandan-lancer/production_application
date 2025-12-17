@@ -38,7 +38,7 @@ def daily_entry_page():
     colA, colB, colC, colD = st.columns(4)
 
     with colA:
-        date = st.date_input("Date", key="dashboard_date")
+        date = st.date_input("Date", key="daily_entry_date")
 
     with colB:
         mills = session.query(Mill).all()
