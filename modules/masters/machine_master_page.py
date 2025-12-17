@@ -123,8 +123,25 @@ def machine_master_page():
             "ID": st.column_config.NumberColumn(disabled=True),
             "Mill": st.column_config.TextColumn(disabled=True),
             "Department": st.column_config.TextColumn(disabled=True),
-            "Count Name": st.column_config.TextColumn(disabled=True),
-            "STD Hank (Auto)": st.column_config.NumberColumn(disabled=True),
+            "Machine Name": st.column_config.TextColumn(disabled=True),
+
+            # 🔽 THIS IS THE KEY FIX
+            "Allocated Count": st.column_config.SelectboxColumn(
+                "Allocated Count",
+                options=list(count_map.keys()),
+                format_func=lambda x: count_map.get(x, ""),
+                help="Changing count will use Std Hank Efficiency from Count Master"
+            ),
+
+            "Count Name": st.column_config.TextColumn(
+                disabled=True,
+                help="Derived from Count Master"
+            ),
+
+            "STD Hank (Auto)": st.column_config.NumberColumn(
+                disabled=True,
+                help="Auto-calculated using Speed, TPI & Count efficiency"
+            ),
         },
     )
 
