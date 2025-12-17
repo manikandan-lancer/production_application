@@ -10,59 +10,55 @@ st.set_page_config(
     layout="wide"
 )
 
-# -------------------------------------------------
-# TOP NAVIGATION TABS
-# -------------------------------------------------
-tabs = st.tabs([
-    "🏠 Home",
-    "🗂 Masters",
-    "📝 Daily Entry",
-    "📊 Dashboard",
-    "📅 Monthly Report",
-])
+# -------------------------------
+# TOP NAVIGATION
+# -------------------------------
+st.markdown(
+    """
+    <style>
+    div[role="radiogroup"] > label {
+        margin-right: 20px;
+        font-size: 16px;
+        font-weight: 500;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
-# -------------------------------------------------
-# HOME
-# -------------------------------------------------
-with tabs[0]:
+menu = st.radio(
+    "",
+    ["🏠 Home", "🧵 Masters", "📝 Daily Entry", "📊 Dashboard", "📅 Monthly Report"],
+    horizontal=True,
+)
+
+st.divider()
+
+# -------------------------------
+# PAGE ROUTING
+# -------------------------------
+if menu == "🏠 Home":
     st.title("🏭 SREE KADERI AMBAL MILLS LTD")
     st.subheader("Shanmuganathapuram")
-    st.divider()
 
     st.markdown("""
     ### 📌 Production Management System
-
-    This application helps you manage:
-
-    - 🧵 **Count Master**
-    - ⚙️ **Machine Master**
-    - 📝 **Daily Production Entry**
-    - 📊 **Production Dashboard**
-    - 📅 **Monthly Reports**
-
-    Please select a module from the top navigation.
+    This application helps manage:
+    - 🧵 Count Master
+    - ⚙️ Machine Master
+    - 📝 Daily Production Entry
+    - 📊 Production Dashboard
+    - 📅 Monthly Reports
     """)
 
-# -------------------------------------------------
-# MASTERS
-# -------------------------------------------------
-with tabs[1]:
+elif menu == "🧵 Masters":
     master_page()
 
-# -------------------------------------------------
-# DAILY ENTRY
-# -------------------------------------------------
-with tabs[2]:
+elif menu == "📝 Daily Entry":
     daily_entry_page()
 
-# -------------------------------------------------
-# DASHBOARD
-# -------------------------------------------------
-with tabs[3]:
+elif menu == "📊 Dashboard":
     dashboard_page()
 
-# -------------------------------------------------
-# MONTHLY REPORT
-# -------------------------------------------------
-with tabs[4]:
+elif menu == "📅 Monthly Report":
     monthly_report_page()
