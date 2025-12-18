@@ -116,7 +116,7 @@ def daily_entry_page():
                 "speed": r.spdl_speed,
                 "tpi": r.tpi,
                 "std_hank": r.std_hank,
-                "count_id": r.count_id,
+                # "count_id": r.count_id,
                 "count_name": count.count_name if count else "",
                 # "conversion_factor": r.conversion_factor,
 
@@ -165,7 +165,7 @@ def daily_entry_page():
                 "speed": m.spdl_speed,
                 "tpi": m.tpi,
                 "std_hank": std_hank,
-                "count_id": m.allocated_count_id,
+                # "count_id": m.allocated_count_id,
                 "count_name": cnt.count_name if cnt else "",
                 # "conversion_factor": safe_float(cnt.conversion_factor) if cnt else 0,
 
