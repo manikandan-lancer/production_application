@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from sqlalchemy.orm import Session
 from sqlalchemy import exists
+
 from database.connection import get_session
 from database.models import DailyProduction
 from database.models import Mill, Department, Machine, CountMaster
@@ -9,7 +10,7 @@ from utils.calc_engine import safe_float, calc_std_hank
 
 
 # -------------------------------------------------------
-# MACHINE MASTER PAGE (FINAL UPDATED VERSION)
+# MACHINE MASTER PAGE
 # -------------------------------------------------------
 def machine_master_page():
     st.title("🛠 Machine Master")
@@ -91,9 +92,6 @@ def machine_master_page():
     # -------------------------------------------------------
     st.subheader("📄 Existing Machines")
 
-    # ----------------------------------
-    # FILTERS (NEW)
-    # ----------------------------------
     fcol1, fcol2 = st.columns(2)
 
     with fcol1:
@@ -112,8 +110,6 @@ def machine_master_page():
             key="machine_filter_dept"
         )
 
-    st.divider()
-
     q = session.query(Machine)
 
     if filter_mill_id:
@@ -122,26 +118,27 @@ def machine_master_page():
     if filter_dept_id:
         q = q.filter(Machine.department_id == filter_dept_id)
 
-    machines = (
-        q.order_by(
-            Machine.mill_id,
-            Machine.department_id,
-            Machine.machine_name
-        ).all()
-    )
-
+    machines = q.order_by(
+        Machine.mill_id,
+        Machine.department_id,
+        Machine.machine_name
+    ).all()
 
     rows = []
     for m in machines:
         c = session.get(CountMaster, m.allocated_count_id)
         std_eff = safe_float(c.std_hank_eff) if c else 0
 
+        # 🔴 CHANGED: usage check per MACHINE ID
+        used = session.query(
+            exists().where(DailyProduction.machine_id == m.id)
+        ).scalar()
+
         rows.append({
             "ID": m.id,
             "Mill": mill_map[m.mill_id],
             "Department": dept_map[m.department_id],
 
-            # ✅ REQUIRED ORDER
             "Machine Name": m.machine_name,
             "Spindles": m.spindles,
             "Allocated Count": m.allocated_count_id,
@@ -149,6 +146,9 @@ def machine_master_page():
             "Speed": float(m.spdl_speed or 0),
             "TPI": float(m.tpi or 0),
             "STD Hank (Auto)": calc_std_hank(m.spdl_speed, m.tpi, std_eff),
+
+            # 🔴 CHANGED
+            "Status": "🔒 Used" if used else "🟢 Free",
             "Delete": False,
         })
 
@@ -163,33 +163,23 @@ def machine_master_page():
             "Mill": st.column_config.TextColumn(disabled=True),
             "Department": st.column_config.TextColumn(disabled=True),
 
-            "Machine Name": st.column_config.TextColumn(
-                help="Editable machine name"
-            ),
-
+            "Machine Name": st.column_config.TextColumn(),
             "Allocated Count": st.column_config.SelectboxColumn(
-                "Allocated Count",
                 options=list(count_map.keys()),
                 format_func=lambda x: count_map.get(x, ""),
-                help="Changing count updates Std Hank using Count Master efficiency"
             ),
+            "Count Name": st.column_config.TextColumn(disabled=True),
+            "STD Hank (Auto)": st.column_config.NumberColumn(disabled=True),
+            "Status": st.column_config.TextColumn(disabled=True),
 
-            "Count Name": st.column_config.TextColumn(
-                disabled=True,
-                help="Derived from Count Master"
+            "Delete": st.column_config.CheckboxColumn(
+                help="Only machines with 🟢 Free status can be deleted"
             ),
-
-            "STD Hank (Auto)": st.column_config.NumberColumn(
-                disabled=True,
-                help="Auto-calculated"
-            ),
-
-            "Delete": st.column_config.CheckboxColumn("Delete"),
         },
     )
 
     # -------------------------------------------------------
-    # 🔁 LIVE STD HANK RECALC (CRITICAL ADDITION)
+    # 🔁 LIVE STD HANK RECALC
     # -------------------------------------------------------
     for i, r in editor.iterrows():
         count_id = r["Allocated Count"]
@@ -202,35 +192,35 @@ def machine_master_page():
             std_eff
         )
 
+        # 🔴 CHANGED: force delete OFF if used
+        if r["Status"] == "🔒 Used":
+            editor.at[i, "Delete"] = False
+
     # -------------------------------------------------------
     # SAVE UPDATES
     # -------------------------------------------------------
     if st.button("💾 Update Machine Records"):
 
-        blocked = []
-        updated = 0
-        deleted = 0
+        blocked, deleted, updated = [], [], 0
 
         for _, row in editor.iterrows():
             m = session.get(Machine, row["ID"])
             if not m:
                 continue
 
-            # -------- DELETE HANDLING --------
-            if row.get("Delete", False):
-                used = session.query(DailyProduction).filter(
-                    DailyProduction.machine_id == m.id
-                ).first()
+            if row["Delete"]:
+                used = session.query(
+                    exists().where(DailyProduction.machine_id == m.id)
+                ).scalar()
 
                 if used:
                     blocked.append(m.machine_name)
-                    continue
                 else:
                     session.delete(m)
-                    deleted += 1
-                    continue
+                    deleted.append(m.machine_name)
+                continue
 
-            # -------- UPDATE HANDLING --------
+            m.machine_name = row["Machine Name"]
             m.spindles = safe_float(row["Spindles"])
             m.spdl_speed = safe_float(row["Speed"])
             m.tpi = safe_float(row["TPI"])
@@ -239,19 +229,15 @@ def machine_master_page():
 
         session.commit()
 
-        # -------- USER FEEDBACK --------
+        if deleted:
+            st.success(f"🗑️ Deleted machines: {', '.join(deleted)}")
+
         if blocked:
             st.warning(
                 "⚠ Cannot delete machines with production data: "
                 + ", ".join(blocked)
             )
 
-        if updated or deleted:
-            st.success(
-                f"✔ Machine Master Updated "
-                f"(Updated: {updated}, Deleted: {deleted})"
-            )
+        if updated:
+            st.success(f"✔ Updated {updated} machine(s)")
             st.info("Daily Entry will reflect updated machine values")
-
-        if not updated and not deleted and not blocked:
-            st.info("No changes were made.")
