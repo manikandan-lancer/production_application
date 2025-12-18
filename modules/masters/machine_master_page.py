@@ -181,7 +181,7 @@ def machine_master_page():
                 options=list(count_map.keys()),
                 format_func=lambda x: count_map.get(x, ""),
             ),
-            "Count Name": st.column_config.TextColumn(disabled=True),
+            # "Count Name": st.column_config.TextColumn(disabled=True),
             "STD Hank (Auto)": st.column_config.NumberColumn(disabled=True),
             "Status": st.column_config.TextColumn(disabled=True),
             "Delete": st.column_config.CheckboxColumn(
