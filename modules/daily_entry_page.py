@@ -116,9 +116,9 @@ def daily_entry_page():
                 "speed": r.spdl_speed,
                 "tpi": r.tpi,
                 "std_hank": r.std_hank,
-                # "count_id": r.count_id,
+                "count_id": r.count_id,
                 "count_name": count.count_name if count else "",
-                # "conversion_factor": r.conversion_factor,
+                "conversion_factor": r.conversion_factor,
 
                 "act_hank": r.act_hank,
                 "pne_bondas": r.pne_bondas,
@@ -165,9 +165,9 @@ def daily_entry_page():
                 "speed": m.spdl_speed,
                 "tpi": m.tpi,
                 "std_hank": std_hank,
-                # "count_id": m.allocated_count_id,
+                "count_id": m.allocated_count_id,
                 "count_name": cnt.count_name if cnt else "",
-                # "conversion_factor": safe_float(cnt.conversion_factor) if cnt else 0,
+                "conversion_factor": safe_float(cnt.conversion_factor) if cnt else 0,
 
                 "act_hank": 0.0,
                 "pne_bondas": 0.0,
@@ -202,7 +202,7 @@ def daily_entry_page():
     # ------------------------------------------------------
     readonly = [
         "machine_name", "spindles", "std_hank",
-        "conversion_factor", "worked_spindles",
+        "worked_spindles",
         "target_kgs", "actual_prdn", "waste_percent",
         "std_gps", "actual_gps", "diff_gps",
         "total_loss", "stop_min"
@@ -212,7 +212,11 @@ def daily_entry_page():
         df,
         disabled=readonly,
         use_container_width=True,
-        height=700
+        height=700,
+        column_config={
+            "count_id": st.column_config.NumberColumn(visible=False),
+            "conversion_factor": st.column_config.NumberColumn(visible=False),
+        }
     )
 
     # ------------------------------------------------------
