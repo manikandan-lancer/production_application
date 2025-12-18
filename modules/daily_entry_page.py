@@ -118,7 +118,7 @@ def daily_entry_page():
                 "std_hank": r.std_hank,
                 "count_id": r.count_id,
                 "count_name": count.count_name if count else "",
-                "conversion_factor": r.conversion_factor,
+                # "conversion_factor": r.conversion_factor,
 
                 "act_hank": r.act_hank,
                 "pne_bondas": r.pne_bondas,
