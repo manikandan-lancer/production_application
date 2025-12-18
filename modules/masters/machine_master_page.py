@@ -158,7 +158,7 @@ def machine_master_page():
             "Machine Name": m.machine_name,
             "Spindles": m.spindles,
             "Allocated Count": m.allocated_count_id,
-            "Count Name": c.count_name if c else "",
+            # "Count Name": c.count_name if c else "",
             "Speed": float(m.spdl_speed or 0),
             "TPI": float(m.tpi or 0),
             "STD Hank (Auto)": calc_std_hank(m.spdl_speed, m.tpi, std_eff),
