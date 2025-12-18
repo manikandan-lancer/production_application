@@ -110,7 +110,7 @@ def machine_master_page():
             key="machine_filter_dept"
         )
 
-    q = session.query(Machine)
+    q = session.query(Machine).filter(Machine.is_active == True)
 
     if filter_mill_id:
         q = q.filter(Machine.mill_id == filter_mill_id)
@@ -208,17 +208,18 @@ def machine_master_page():
             if not m:
                 continue
 
-            if row["Delete"]:
-                used = session.query(
-                    exists().where(DailyProduction.machine_id == m.id)
-                ).scalar()
+            if row.get("Delete", False):
+                used = session.query(DailyProduction).filter(
+                    DailyProduction.machine_id == m.id
+                ).first()
 
                 if used:
                     blocked.append(m.machine_name)
+                    continue
                 else:
-                    session.delete(m)
-                    deleted.append(m.machine_name)
-                continue
+                    m.is_active = False   # ✅ SOFT DELETE
+                    deleted += 1
+                    continue
 
             m.machine_name = row["Machine Name"]
             m.spindles = safe_float(row["Spindles"])

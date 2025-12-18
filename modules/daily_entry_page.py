@@ -83,7 +83,7 @@ def daily_entry_page():
     # ------------------------------------------------------
     machines = (
         session.query(Machine)
-        .filter(Machine.mill_id == mill_id, Machine.department_id == dept_id)
+        .filter(Machine.is_active == True, Machine.mill_id == mill_id, Machine.department_id == dept_id)
         .order_by(Machine.machine_name)
         .all()
     )

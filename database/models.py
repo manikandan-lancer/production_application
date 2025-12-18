@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Date, Numeric, ForeignKey, Time
+from sqlalchemy import Column, Integer, String, Date, Numeric, ForeignKey, Time, Boolean
 from sqlalchemy.orm import relationship
 from database.connection import Base
 
@@ -62,6 +62,7 @@ class Machine(Base):
     mill = relationship("Mill", back_populates="machines")
     department = relationship("Department", back_populates="machines")
     allocated_count = relationship("CountMaster", back_populates="machines")
+    is_active = Column(Boolean, default=True, nullable=False)
 
 
 class Employee(Base):
