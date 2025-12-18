@@ -19,16 +19,39 @@ from utils.calc_engine import (
     calc_std_gps,
     calc_actual_gps,
     calc_diff_gps,
-    calc_40s_conv_gps,
     calc_total_loss
 )
 
-
 # ----------------------------------------------------------
-# DAILY ENTRY PAGE — FINAL (GPS + 40s CONV + LIVE CALCS)
+# DAILY ENTRY PAGE
 # ----------------------------------------------------------
 def daily_entry_page():
-    st.title("📘 Daily Production Entry")
+
+    # --------- LAYOUT FIXES (NO STRUCTURE CHANGE) ----------
+    st.markdown("""
+    <style>
+    .block-container { padding-top: 1rem; padding-bottom: 0rem; }
+
+    /* Sticky header */
+    div[data-testid="stDataEditor"] thead tr th {
+        position: sticky;
+        top: 0;
+        background-color: #f9fafb;
+        z-index: 3;
+    }
+
+    /* Freeze Machine Name column */
+    div[data-testid="stDataEditor"] tbody tr td:nth-child(2),
+    div[data-testid="stDataEditor"] thead tr th:nth-child(2) {
+        position: sticky;
+        left: 0;
+        background-color: #ffffff;
+        z-index: 2;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown("## 📘 Daily Production Entry")
 
     session: Session = next(get_session())
 
@@ -38,7 +61,7 @@ def daily_entry_page():
     colA, colB, colC, colD = st.columns(4)
 
     with colA:
-        date = st.date_input("Date", key="daily_entry_date")
+        date = st.date_input("Date")
 
     with colB:
         mills = session.query(Mill).all()
@@ -54,8 +77,6 @@ def daily_entry_page():
         shifts = session.query(Shift).all()
         shift_map = {s.id: s.shift_name for s in shifts}
         shift_id = st.selectbox("Shift", shift_map.keys(), format_func=lambda x: shift_map[x])
-
-    st.divider()
 
     # ------------------------------------------------------
     # LOAD MACHINES
@@ -88,30 +109,16 @@ def daily_entry_page():
             machine = session.get(Machine, r.machine_id)
             count = session.get(CountMaster, r.count_id)
 
-            # 🔹 master reference
-            master_speed = machine.spdl_speed if machine else 0
-            master_tpi = machine.tpi if machine else 0
-            master_count = machine.allocated_count_id if machine else None
-
-            overridden = (
-                r.spdl_speed != master_speed
-                or r.tpi != master_tpi
-                or r.count_id != master_count
-            )
-
             rows.append({
                 "machine_id": r.machine_id,
                 "machine_name": machine.machine_name if machine else "",
-
                 "spindles": r.spindles,
                 "speed": r.spdl_speed,
                 "tpi": r.tpi,
                 "std_hank": r.std_hank,
-
                 "count_id": r.count_id,
                 "count_name": count.count_name if count else "",
                 "conversion_factor": r.conversion_factor,
-                "conv_40s_factor": safe_float(count.conv_40s_factor) if count else 0,
 
                 "act_hank": r.act_hank,
                 "pne_bondas": r.pne_bondas,
@@ -125,7 +132,6 @@ def daily_entry_page():
                 "std_gps": r.std_gps,
                 "actual_gps": r.actual_gps,
                 "diff_gps": r.diff_gps,
-                "conv_40s_gps": r.conv_40s_gps,
 
                 "woh": r.woh,
                 "mw": r.mw,
@@ -137,38 +143,37 @@ def daily_entry_page():
                 "dd": r.dd,
                 "total_loss": r.total_loss,
                 "stop_min": r.stop_min,
-
-                # ✅ OVERRIDE BADGE
-                "Override": "⚠ Modified from Master" if overridden else "✔ Master",
                 "remarks": r.remarks or "",
             })
 
     else:
         for m in machines:
             cnt = session.get(CountMaster, m.allocated_count_id)
-
             std_eff = safe_float(cnt.std_hank_eff) if cnt else 0
             std_hank = calc_std_hank(m.spdl_speed, m.tpi, std_eff)
+
+            target = calc_target_kgs(
+                safe_float(cnt.conversion_factor if cnt else 0),
+                m.spindles,
+                std_hank
+            )
 
             rows.append({
                 "machine_id": m.id,
                 "machine_name": m.machine_name,
-
                 "spindles": m.spindles,
                 "speed": m.spdl_speed,
                 "tpi": m.tpi,
                 "std_hank": std_hank,
-
                 "count_id": m.allocated_count_id,
                 "count_name": cnt.count_name if cnt else "",
                 "conversion_factor": safe_float(cnt.conversion_factor) if cnt else 0,
-                "conv_40s_factor": safe_float(cnt.conv_40s_factor) if cnt else 0,
 
                 "act_hank": 0.0,
                 "pne_bondas": 0.0,
 
-                "worked_spindles": 0.0,
-                "target_kgs": 0.0,
+                "worked_spindles": m.spindles,
+                "target_kgs": target,
                 "prod_kgs": 0.0,
                 "actual_prdn": 0.0,
                 "waste_percent": 0.0,
@@ -176,7 +181,6 @@ def daily_entry_page():
                 "std_gps": 0.0,
                 "actual_gps": 0.0,
                 "diff_gps": 0.0,
-                "conv_40s_gps": 0.0,
 
                 "woh": 0.0,
                 "mw": 0.0,
@@ -188,8 +192,6 @@ def daily_entry_page():
                 "dd": 0.0,
                 "total_loss": 0.0,
                 "stop_min": 0.0,
-
-                "Override": "✔ Master",
                 "remarks": "",
             })
 
@@ -203,23 +205,20 @@ def daily_entry_page():
         "conversion_factor", "worked_spindles",
         "target_kgs", "actual_prdn", "waste_percent",
         "std_gps", "actual_gps", "diff_gps",
-        "conv_40s_gps", "total_loss", "stop_min",
-        "Override"
+        "total_loss", "stop_min"
     ]
 
     edited = st.data_editor(
         df,
         disabled=readonly,
         use_container_width=True,
+        height=700
     )
 
     # ------------------------------------------------------
     # LIVE CALCULATIONS
     # ------------------------------------------------------
     for i, r in edited.iterrows():
-        act_hank = safe_float(r["act_hank"])
-        pne = safe_float(r["pne_bondas"])
-
         total_loss = calc_total_loss(
             r["woh"], r["mw"], r["clg_lc"], r["er"],
             r["la_pf"], r["bss"], r["lap"], r["dd"]
@@ -229,24 +228,20 @@ def daily_entry_page():
         edited.at[i, "stop_min"] = total_loss
 
         worked = calc_worked_spindles(r["spindles"], total_loss)
+        prod = calc_prod_kgs(r["conversion_factor"], r["spindles"], r["act_hank"])
+        actual = calc_actual_prdn(prod, r["pne_bondas"])
+
         edited.at[i, "worked_spindles"] = worked
-
-        target = calc_target_kgs(r["conversion_factor"], r["spindles"], r["std_hank"])
-        prod = calc_prod_kgs(r["conversion_factor"], r["spindles"], act_hank)
-        actual = calc_actual_prdn(prod, pne)
-
-        edited.at[i, "target_kgs"] = target
         edited.at[i, "prod_kgs"] = prod
         edited.at[i, "actual_prdn"] = actual
-        edited.at[i, "waste_percent"] = calc_waste_percent(pne, prod)
+        edited.at[i, "waste_percent"] = calc_waste_percent(r["pne_bondas"], prod)
 
-        std_gps = calc_std_gps(target, r["spindles"])
+        std_gps = calc_std_gps(r["target_kgs"], r["spindles"])
         actual_gps = calc_actual_gps(actual, worked)
 
         edited.at[i, "std_gps"] = std_gps
         edited.at[i, "actual_gps"] = actual_gps
         edited.at[i, "diff_gps"] = calc_diff_gps(std_gps, actual_gps)
-        edited.at[i, "conv_40s_gps"] = calc_40s_conv_gps(r["conv_40s_factor"], actual_gps)
 
     # ------------------------------------------------------
     # SAVE
@@ -283,7 +278,6 @@ def daily_entry_page():
                 std_gps=r["std_gps"],
                 actual_gps=r["actual_gps"],
                 diff_gps=r["diff_gps"],
-                conv_40s_gps=r["conv_40s_gps"],
                 woh=r["woh"],
                 mw=r["mw"],
                 clg_lc=r["clg_lc"],

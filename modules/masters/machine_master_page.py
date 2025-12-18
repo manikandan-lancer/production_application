@@ -1,7 +1,9 @@
 import streamlit as st
 import pandas as pd
 from sqlalchemy.orm import Session
+from sqlalchemy import exists
 from database.connection import get_session
+from database.models import DailyProduction
 from database.models import Mill, Department, Machine, CountMaster
 from utils.calc_engine import safe_float, calc_std_hank
 
@@ -138,13 +140,16 @@ def machine_master_page():
             "ID": m.id,
             "Mill": mill_map[m.mill_id],
             "Department": dept_map[m.department_id],
+
+            # ✅ REQUIRED ORDER
             "Machine Name": m.machine_name,
             "Spindles": m.spindles,
-            "Speed": float(m.spdl_speed or 0),
-            "TPI": float(m.tpi or 0),
             "Allocated Count": m.allocated_count_id,
             "Count Name": c.count_name if c else "",
+            "Speed": float(m.spdl_speed or 0),
+            "TPI": float(m.tpi or 0),
             "STD Hank (Auto)": calc_std_hank(m.spdl_speed, m.tpi, std_eff),
+            "Delete": False,
         })
 
     df = pd.DataFrame(rows)
@@ -157,14 +162,16 @@ def machine_master_page():
             "ID": st.column_config.NumberColumn(disabled=True),
             "Mill": st.column_config.TextColumn(disabled=True),
             "Department": st.column_config.TextColumn(disabled=True),
-            "Machine Name": st.column_config.TextColumn(disabled=True),
 
-            # 🔽 THIS IS THE KEY FIX
+            "Machine Name": st.column_config.TextColumn(
+                help="Editable machine name"
+            ),
+
             "Allocated Count": st.column_config.SelectboxColumn(
                 "Allocated Count",
                 options=list(count_map.keys()),
                 format_func=lambda x: count_map.get(x, ""),
-                help="Changing count will use Std Hank Efficiency from Count Master"
+                help="Changing count updates Std Hank using Count Master efficiency"
             ),
 
             "Count Name": st.column_config.TextColumn(
@@ -174,8 +181,10 @@ def machine_master_page():
 
             "STD Hank (Auto)": st.column_config.NumberColumn(
                 disabled=True,
-                help="Auto-calculated using Speed, TPI & Count efficiency"
+                help="Auto-calculated"
             ),
+
+            "Delete": st.column_config.CheckboxColumn("Delete"),
         },
     )
 
@@ -197,13 +206,27 @@ def machine_master_page():
     # SAVE UPDATES
     # -------------------------------------------------------
     if st.button("💾 Update Machine Records"):
-        for _, r in editor.iterrows():
-            m = session.get(Machine, r["ID"])
-            if m:
-                m.spindles = safe_float(r["Spindles"])
-                m.spdl_speed = safe_float(r["Speed"])
-                m.tpi = safe_float(r["TPI"])
-                m.allocated_count_id = r["Allocated Count"]
+        for _, row in editor.iterrows():
+            m = session.query(Machine).filter_by(id=row["ID"]).first()
+            if not m:
+                continue
+
+            if row.get("Delete"):
+                used = session.query(
+                    exists().where(DailyProduction.machine_id == m.id)
+                ).scalar()
+
+                if used:
+                    st.warning(f"Machine {m.machine_name} has production data. Cannot delete.")
+                else:
+                    session.delete(m)
+                continue
+
+            # normal update
+            m.spindles = safe_float(row["Spindles"])
+            m.spdl_speed = safe_float(row["Speed"])
+            m.tpi = safe_float(row["TPI"])
+            m.allocated_count_id = row["Allocated Count"]
 
         session.commit()
         st.success("✔ Machine Master Updated Successfully")
