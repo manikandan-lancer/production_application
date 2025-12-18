@@ -231,12 +231,18 @@ def daily_entry_page():
         prod = calc_prod_kgs(r["conversion_factor"], r["spindles"], r["act_hank"])
         actual = calc_actual_prdn(prod, r["pne_bondas"])
 
+        edited.at[i, "target_kgs"] = calc_target_kgs(
+            r["conversion_factor"],
+            r["spindles"],
+            r["std_hank"]
+        )
+
         edited.at[i, "worked_spindles"] = worked
         edited.at[i, "prod_kgs"] = prod
         edited.at[i, "actual_prdn"] = actual
         edited.at[i, "waste_percent"] = calc_waste_percent(r["pne_bondas"], prod)
 
-        std_gps = calc_std_gps(r["target_kgs"], r["spindles"])
+        std_gps = calc_std_gps(r["target_kgs"], worked)
         actual_gps = calc_actual_gps(actual, worked)
 
         edited.at[i, "std_gps"] = std_gps
@@ -292,3 +298,22 @@ def daily_entry_page():
 
         session.commit()
         st.success("✅ Daily Production Saved Successfully")
+
+    st.divider()
+    st.subheader("📌 Shift Production Summary")
+
+    c1, c2, c3 = st.columns(3)
+
+    with c1:
+        st.metric("🎯 Total Target Kgs", round(edited["target_kgs"].sum(), 2))
+        st.metric("⚙️ Total Production Kgs", round(edited["prod_kgs"].sum(), 2))
+
+    with c2:
+        st.metric("📦 Actual Production", round(edited["actual_prdn"].sum(), 2))
+        st.metric("🧵 Total Pne Bondas", round(edited["pne_bondas"].sum(), 2))
+
+    with c3:
+        st.metric("⏱️ Total Stop Minutes", round(edited["stop_min"].sum(), 2))
+        st.metric("♻️ Avg Waste %", round(
+            edited["waste_percent"].mean(), 2
+        ))

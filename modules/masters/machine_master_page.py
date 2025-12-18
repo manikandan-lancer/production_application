@@ -206,28 +206,52 @@ def machine_master_page():
     # SAVE UPDATES
     # -------------------------------------------------------
     if st.button("💾 Update Machine Records"):
+
+        blocked = []
+        updated = 0
+        deleted = 0
+
         for _, row in editor.iterrows():
-            m = session.query(Machine).filter_by(id=row["ID"]).first()
+            m = session.get(Machine, row["ID"])
             if not m:
                 continue
 
-            if row.get("Delete"):
-                used = session.query(
-                    exists().where(DailyProduction.machine_id == m.id)
-                ).scalar()
+            # -------- DELETE HANDLING --------
+            if row.get("Delete", False):
+                used = session.query(DailyProduction).filter(
+                    DailyProduction.machine_id == m.id
+                ).first()
 
                 if used:
-                    st.warning(f"Machine {m.machine_name} has production data. Cannot delete.")
+                    blocked.append(m.machine_name)
+                    continue
                 else:
                     session.delete(m)
-                continue
+                    deleted += 1
+                    continue
 
-            # normal update
+            # -------- UPDATE HANDLING --------
             m.spindles = safe_float(row["Spindles"])
             m.spdl_speed = safe_float(row["Speed"])
             m.tpi = safe_float(row["TPI"])
             m.allocated_count_id = row["Allocated Count"]
+            updated += 1
 
         session.commit()
-        st.success("✔ Machine Master Updated Successfully")
-        st.info("Daily Entry will reflect updated machine values")
+
+        # -------- USER FEEDBACK --------
+        if blocked:
+            st.warning(
+                "⚠ Cannot delete machines with production data: "
+                + ", ".join(blocked)
+            )
+
+        if updated or deleted:
+            st.success(
+                f"✔ Machine Master Updated "
+                f"(Updated: {updated}, Deleted: {deleted})"
+            )
+            st.info("Daily Entry will reflect updated machine values")
+
+        if not updated and not deleted and not blocked:
+            st.info("No changes were made.")
