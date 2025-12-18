@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Date, Numeric, ForeignKey, Time, Boolean
+from sqlalchemy import Column, Integer, String, Date, Numeric, ForeignKey, Time, Boolean, UniqueConstraint, Index
 from sqlalchemy.orm import relationship
 from database.connection import Base
 
@@ -47,6 +47,16 @@ class CountMaster(Base):
 class Machine(Base):
     __tablename__ = "machine_master"
 
+    __table_args__ = (
+        UniqueConstraint(
+            "machine_name",
+            "mill_id",
+            "department_id",
+            name="uq_machine_name_mill_dept"
+        ),
+        Index("idx_machine_active", "mill_id", "department_id", "is_active")
+    )
+
     id = Column(Integer, primary_key=True)
     mill_id = Column(Integer, ForeignKey("mill_master.id"), nullable=False)
     department_id = Column(Integer, ForeignKey("department_master.id"), nullable=False)
@@ -62,6 +72,7 @@ class Machine(Base):
     mill = relationship("Mill", back_populates="machines")
     department = relationship("Department", back_populates="machines")
     allocated_count = relationship("CountMaster", back_populates="machines")
+
     is_active = Column(Boolean, default=True, nullable=False)
 
 

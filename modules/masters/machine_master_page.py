@@ -69,18 +69,36 @@ def machine_master_page():
         st.write(f"📘 **STD Hank Preview:** `{std_preview}`")
 
         if st.form_submit_button("💾 Save Machine"):
-            if not machine_name.strip():
+            name_clean = machine_name.strip().upper()
+
+            if not name_clean:
                 st.error("Machine Name cannot be empty.")
+                return
+
+            # ✅ DUPLICATE CHECK
+            exists_machine = session.query(Machine).filter(
+                Machine.machine_name == name_clean,
+                Machine.mill_id == mill_id,
+                Machine.department_id == dept_id,
+                Machine.is_active == True
+            ).first()
+
+            if exists_machine:
+                st.error(
+                    f"❌ Machine '{name_clean}' already exists "
+                    f"in {mill_map[mill_id]} / {dept_map[dept_id]}"
+                )
                 return
 
             session.add(Machine(
                 mill_id=mill_id,
                 department_id=dept_id,
-                machine_name=machine_name.strip(),
+                machine_name=name_clean,
                 spindles=spindles,
                 spdl_speed=spdl_speed,
                 tpi=tpi,
                 allocated_count_id=allocated_count_id,
+                is_active=True
             ))
             session.commit()
             st.success("✔ Machine Added Successfully")
@@ -129,7 +147,6 @@ def machine_master_page():
         c = session.get(CountMaster, m.allocated_count_id)
         std_eff = safe_float(c.std_hank_eff) if c else 0
 
-        # 🔴 CHANGED: usage check per MACHINE ID
         used = session.query(
             exists().where(DailyProduction.machine_id == m.id)
         ).scalar()
@@ -138,7 +155,6 @@ def machine_master_page():
             "ID": m.id,
             "Mill": mill_map[m.mill_id],
             "Department": dept_map[m.department_id],
-
             "Machine Name": m.machine_name,
             "Spindles": m.spindles,
             "Allocated Count": m.allocated_count_id,
@@ -146,8 +162,6 @@ def machine_master_page():
             "Speed": float(m.spdl_speed or 0),
             "TPI": float(m.tpi or 0),
             "STD Hank (Auto)": calc_std_hank(m.spdl_speed, m.tpi, std_eff),
-
-            # 🔴 CHANGED
             "Status": "🔒 Used" if used else "🟢 Free",
             "Delete": False,
         })
@@ -162,7 +176,6 @@ def machine_master_page():
             "ID": st.column_config.NumberColumn(disabled=True),
             "Mill": st.column_config.TextColumn(disabled=True),
             "Department": st.column_config.TextColumn(disabled=True),
-
             "Machine Name": st.column_config.TextColumn(),
             "Allocated Count": st.column_config.SelectboxColumn(
                 options=list(count_map.keys()),
@@ -171,37 +184,20 @@ def machine_master_page():
             "Count Name": st.column_config.TextColumn(disabled=True),
             "STD Hank (Auto)": st.column_config.NumberColumn(disabled=True),
             "Status": st.column_config.TextColumn(disabled=True),
-
             "Delete": st.column_config.CheckboxColumn(
-                help="Only machines with 🟢 Free status can be deleted"
+                help="Only 🟢 Free machines can be deleted"
             ),
         },
     )
-
-    # -------------------------------------------------------
-    # 🔁 LIVE STD HANK RECALC
-    # -------------------------------------------------------
-    for i, r in editor.iterrows():
-        count_id = r["Allocated Count"]
-        count_obj = session.get(CountMaster, count_id) if count_id else None
-        std_eff = safe_float(count_obj.std_hank_eff) if count_obj else 0
-
-        editor.at[i, "STD Hank (Auto)"] = calc_std_hank(
-            safe_float(r["Speed"]),
-            safe_float(r["TPI"]),
-            std_eff
-        )
-
-        # 🔴 CHANGED: force delete OFF if used
-        if r["Status"] == "🔒 Used":
-            editor.at[i, "Delete"] = False
 
     # -------------------------------------------------------
     # SAVE UPDATES
     # -------------------------------------------------------
     if st.button("💾 Update Machine Records"):
 
-        blocked, deleted, updated = [], [], 0
+        blocked = []
+        deleted = []
+        updated = 0
 
         for _, row in editor.iterrows():
             m = session.get(Machine, row["ID"])
@@ -215,13 +211,12 @@ def machine_master_page():
 
                 if used:
                     blocked.append(m.machine_name)
-                    continue
                 else:
-                    m.is_active = False   # ✅ SOFT DELETE
-                    deleted += 1
-                    continue
+                    m.is_active = False
+                    deleted.append(m.machine_name)
+                continue
 
-            m.machine_name = row["Machine Name"]
+            m.machine_name = row["Machine Name"].strip().upper()
             m.spindles = safe_float(row["Spindles"])
             m.spdl_speed = safe_float(row["Speed"])
             m.tpi = safe_float(row["TPI"])
