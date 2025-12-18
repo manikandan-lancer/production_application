@@ -208,15 +208,47 @@ def daily_entry_page():
         "total_loss", "stop_min"
     ]
 
+    # Columns to SHOW in UI (hide count_id & conversion_factor)
+    visible_columns = [
+        "machine_name",
+        "spindles",
+        "speed",
+        "tpi",
+        "std_hank",
+        "count_name",
+
+        "act_hank",
+        "pne_bondas",
+
+        "worked_spindles",
+        "target_kgs",
+        "prod_kgs",
+        "actual_prdn",
+        "waste_percent",
+
+        "std_gps",
+        "actual_gps",
+        "diff_gps",
+
+        "woh",
+        "mw",
+        "clg_lc",
+        "er",
+        "la_pf",
+        "bss",
+        "lap",
+        "dd",
+        "total_loss",
+        "stop_min",
+        "remarks",
+    ]
+
     edited = st.data_editor(
         df,
         disabled=readonly,
+        column_order=visible_columns,   # ✅ hides count_id & conversion_factor
         use_container_width=True,
         height=700,
-        column_config={
-            "count_id": st.column_config.NumberColumn(visible=False),
-            "conversion_factor": st.column_config.NumberColumn(visible=False),
-        }
     )
 
     # ------------------------------------------------------
