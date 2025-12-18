@@ -167,7 +167,7 @@ def daily_entry_page():
                 "std_hank": std_hank,
                 "count_id": m.allocated_count_id,
                 "count_name": cnt.count_name if cnt else "",
-                "conversion_factor": safe_float(cnt.conversion_factor) if cnt else 0,
+                # "conversion_factor": safe_float(cnt.conversion_factor) if cnt else 0,
 
                 "act_hank": 0.0,
                 "pne_bondas": 0.0,
