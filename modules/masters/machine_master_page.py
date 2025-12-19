@@ -17,13 +17,13 @@ def machine_master_page():
 
     session: Session = next(get_session())
 
-    st.info("""
-    Define **Machine Constants** for each Mill & Department.
+    # st.info("""
+    # Define **Machine Constants** for each Mill & Department.
 
-    **Rules:**
-    - Spindles, Speed, TPI are fixed master values.
-    - **STD Hank auto-calculates using Count Master efficiency**
-    """)
+    # **Rules:**
+    # - Spindles, Speed, TPI are fixed master values.
+    # - **STD Hank auto-calculates using Count Master efficiency**
+    # """)
 
     # -------------------------------------------------------
     # LOAD MASTERS
