@@ -222,8 +222,8 @@ def daily_entry_page():
     visible_columns = [
         "machine_name",
         "spindles",
-        "speed",
         "count_name",
+        "speed",
         "tpi",
         "std_hank",
 
@@ -292,7 +292,7 @@ def daily_entry_page():
             r["target_kgs"],
             r["spindles"]
         )
-        
+
         actual_gps = calc_actual_gps(actual, worked)
 
         conv_40s = calc_40s_conv_gps(
