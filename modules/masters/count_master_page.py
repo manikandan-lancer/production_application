@@ -8,17 +8,31 @@ from utils.calc_engine import safe_float, calc_conversion_factor
 
 
 # -------------------------------------------------------
-# COUNT MASTER PAGE — FINAL FULL VERSION
+# COUNT MASTER PAGE — UPDATED WITH RESET BUTTON
 # -------------------------------------------------------
 def count_master_page():
     st.title("🧵 Count Master Setup")
 
     session: Session = next(get_session())
 
+    # -------------------------------
+    # SESSION STATE (RESET SUPPORT)
+    # -------------------------------
+    if "cm_reset" not in st.session_state:
+        st.session_state.cm_reset = False
+
+    if st.session_state.cm_reset:
+        st.session_state.cm_name = ""
+        st.session_state.cm_actual = 0.0
+        st.session_state.cm_spin_eff = 0.0
+        st.session_state.cm_std_eff = 0.0
+        st.session_state.cm_40s = 0.0
+        st.session_state.cm_reset = False
+
     st.info("""
-    Configure count-level constants for each Mill.
-    These values automatically update Machine Master,
-    Daily Entry, and Dashboard calculations.
+    Configure count-level constants.
+    These values automatically update:
+    Machine Master, Daily Entry, and Dashboard.
     """)
 
     # -------------------------------------------------------
@@ -30,50 +44,65 @@ def count_master_page():
         col1, col2 = st.columns(2)
 
         with col1:
-            count_name = st.text_input("Count Name (e.g. 40s, 60s)")
+            count_name = st.text_input(
+                "Count Name (e.g. 40s, 60s)",
+                key="cm_name"
+            )
             actual_count = st.number_input(
                 "Actual Count",
                 min_value=0.0,
-                step=0.01
+                step=0.01,
+                key="cm_actual"
             )
 
         with col2:
             spinning_eff = st.number_input(
                 "Spinning Count Efficiency (%)",
                 min_value=0.0,
-                step=0.01
+                step=0.01,
+                key="cm_spin_eff"
             )
 
             std_hank_eff = st.number_input(
                 "Std Hank Efficiency (%)",
                 min_value=0.0,
-                step=0.01
+                step=0.01,
+                key="cm_std_eff"
             )
 
-            # ✅ NO ROUNDING – USER CONTROLLED
             conv_40s_factor = st.number_input(
                 "40s Conversion Factor",
                 min_value=0.0,
                 step=0.000001,
-                format="%.6f"
+                format="%.6f",
+                key="cm_40s"
             )
 
-        # LIVE PREVIEW (NOT STORED)
+        # LIVE PREVIEW
         preview_cf = calc_conversion_factor(actual_count, spinning_eff)
         st.write(f"📘 **Conversion Factor Preview:** `{preview_cf}`")
 
-        submit = st.form_submit_button("💾 Save / Update Count")
+        b1, b2 = st.columns(2)
 
+        submit = b1.form_submit_button("💾 Save / Update Count")
+        reset = b2.form_submit_button("🔄 Reset")
+
+        # ---------------- RESET ----------------
+        if reset:
+            st.session_state.cm_reset = True
+            st.rerun()
+
+        # ---------------- SAVE ----------------
         if submit:
-            if not count_name.strip():
+            name_clean = count_name.strip().upper()
+
+            if not name_clean:
                 st.error("Count Name cannot be empty.")
                 return
 
             existing = (
                 session.query(CountMaster)
-                .filter(
-                    CountMaster.count_name == count_name.strip(),
-                )
+                .filter(CountMaster.count_name == name_clean)
                 .first()
             )
 
@@ -83,19 +112,17 @@ def count_master_page():
                 existing.std_hank_eff = std_hank_eff
                 existing.conversion_factor = preview_cf
                 existing.conv_40s_factor = conv_40s_factor
-
                 st.success("✔ Count Updated Successfully")
 
             else:
-                new_c = CountMaster(
-                    count_name=count_name.strip(),
+                session.add(CountMaster(
+                    count_name=name_clean,
                     actual_count=actual_count,
                     spinning_count_eff=spinning_eff,
                     std_hank_eff=std_hank_eff,
                     conversion_factor=preview_cf,
                     conv_40s_factor=conv_40s_factor,
-                )
-                session.add(new_c)
+                ))
                 st.success("✔ New Count Added Successfully")
 
             session.commit()
@@ -137,8 +164,6 @@ def count_master_page():
         column_config={
             "ID": st.column_config.NumberColumn(disabled=True),
             "Count Name": st.column_config.TextColumn(disabled=True),
-
-            # DISPLAY FORMATTED – DB NOT ROUNDED
             "Conversion Factor": st.column_config.NumberColumn(
                 format="%.6f",
                 disabled=True
@@ -153,24 +178,20 @@ def count_master_page():
     # SAVE GRID UPDATES
     # -------------------------------------------------------
     if st.button("💾 Update Count Records"):
-
         for _, row in editor.iterrows():
-            c = session.query(CountMaster).filter_by(id=row["ID"]).first()
+            c = session.get(CountMaster, row["ID"])
             if c:
                 c.actual_count = safe_float(row["Actual Count"])
                 c.spinning_count_eff = safe_float(row["Spinning Count Efficiency (%)"])
                 c.std_hank_eff = safe_float(row["Std Hank Efficiency (%)"])
 
-                # recalculated system factor
                 c.conversion_factor = calc_conversion_factor(
                     c.actual_count,
-                    c.spinning_count_eff,
+                    c.spinning_count_eff
                 )
 
-                # ✅ SAVE USER-EDITED 40s FACTOR
                 c.conv_40s_factor = safe_float(row["40s Conv Factor"])
 
         session.commit()
         st.success("✔ Count Master Updated Successfully")
-
-        st.info("Machine Master, Daily Entry & Dashboard now reflect latest values.")
+        st.info("Machine Master, Daily Entry & Dashboard updated automatically.")
