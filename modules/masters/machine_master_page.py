@@ -46,31 +46,6 @@ def machine_master_page():
     count_map = {c.id: c.count_name for c in counts}
 
     # -------------------------------------------------------
-    # 🔍 CONTEXT FILTER (IMPORTANT FIX)
-    # -------------------------------------------------------
-    st.subheader("🔍 Select Context")
-
-    f1, f2 = st.columns(2)
-
-    with f1:
-        filter_mill_id = st.selectbox(
-            "Mill",
-            mill_map.keys(),
-            format_func=lambda x: mill_map[x],
-            key="mm_mill_filter"
-        )
-
-    with f2:
-        filter_dept_id = st.selectbox(
-            "Department",
-            dept_map.keys(),
-            format_func=lambda x: dept_map[x],
-            key="mm_dept_filter"
-        )
-
-    st.divider()
-
-    # -------------------------------------------------------
     # ADD MACHINE FORM
     # -------------------------------------------------------
     st.subheader("➕ Add New Machine")
@@ -138,6 +113,31 @@ def machine_master_page():
         st.success("✔ Machine Added Successfully")
         reset_machine_form()
         st.rerun()
+
+    # -------------------------------------------------------
+    # 🔍 CONTEXT FILTER (IMPORTANT FIX)
+    # -------------------------------------------------------
+    st.subheader("🔍 Select Context")
+
+    f1, f2 = st.columns(2)
+
+    with f1:
+        filter_mill_id = st.selectbox(
+            "Mill",
+            mill_map.keys(),
+            format_func=lambda x: mill_map[x],
+            key="mm_mill_filter"
+        )
+
+    with f2:
+        filter_dept_id = st.selectbox(
+            "Department",
+            dept_map.keys(),
+            format_func=lambda x: dept_map[x],
+            key="mm_dept_filter"
+        )
+
+    st.divider()
 
     # -------------------------------------------------------
     # EXISTING MACHINES
