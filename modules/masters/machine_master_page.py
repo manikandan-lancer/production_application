@@ -46,7 +46,32 @@ def machine_master_page():
     count_map = {c.id: c.count_name for c in counts}
 
     # -------------------------------------------------------
-    # ADD MACHINE FORM
+    # 🔍 CONTEXT FILTER (MUST COME FIRST)
+    # -------------------------------------------------------
+    st.subheader("🔍 Select Context")
+
+    f1, f2 = st.columns(2)
+
+    with f1:
+        filter_mill_id = st.selectbox(
+            "Mill",
+            mill_map.keys(),
+            format_func=lambda x: mill_map[x],
+            key="mm_mill_filter"
+        )
+
+    with f2:
+        filter_dept_id = st.selectbox(
+            "Department",
+            dept_map.keys(),
+            format_func=lambda x: dept_map[x],
+            key="mm_dept_filter"
+        )
+
+    st.divider()
+
+    # -------------------------------------------------------
+    # ➕ ADD NEW MACHINE
     # -------------------------------------------------------
     st.subheader("➕ Add New Machine")
 
@@ -70,9 +95,10 @@ def machine_master_page():
                 key="mm_count"
             )
 
-        std_eff = safe_float(
-            session.get(CountMaster, allocated_count_id).std_hank_eff
-        ) if allocated_count_id else 0
+        std_eff = (
+            safe_float(session.get(CountMaster, allocated_count_id).std_hank_eff)
+            if allocated_count_id else 0
+        )
 
         st.caption(f"📘 STD Hank Preview: {calc_std_hank(spdl_speed, tpi, std_eff)}")
 
@@ -115,32 +141,7 @@ def machine_master_page():
         st.rerun()
 
     # -------------------------------------------------------
-    # 🔍 CONTEXT FILTER (IMPORTANT FIX)
-    # -------------------------------------------------------
-    st.subheader("🔍 Select Context")
-
-    f1, f2 = st.columns(2)
-
-    with f1:
-        filter_mill_id = st.selectbox(
-            "Mill",
-            mill_map.keys(),
-            format_func=lambda x: mill_map[x],
-            key="mm_mill_filter"
-        )
-
-    with f2:
-        filter_dept_id = st.selectbox(
-            "Department",
-            dept_map.keys(),
-            format_func=lambda x: dept_map[x],
-            key="mm_dept_filter"
-        )
-
-    st.divider()
-
-    # -------------------------------------------------------
-    # EXISTING MACHINES
+    # 📄 EXISTING MACHINES
     # -------------------------------------------------------
     st.divider()
     st.subheader("📄 Existing Machines")
