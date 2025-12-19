@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 from sqlalchemy.orm import Session
-
 from database.connection import get_session
 from database.models import (
     Mill, Department, Shift, Machine,
@@ -19,7 +18,8 @@ from utils.calc_engine import (
     calc_std_gps,
     calc_actual_gps,
     calc_diff_gps,
-    calc_total_loss
+    calc_total_loss,
+    calc_40s_conv_gps
 )
 
 # ----------------------------------------------------------
@@ -123,11 +123,11 @@ def daily_entry_page():
                 "machine_id": r.machine_id,
                 "machine_name": machine.machine_name if machine else "",
                 "spindles": r.spindles,
+                "count_name": count.count_name if count else "",
                 "speed": r.spdl_speed,
                 "tpi": r.tpi,
                 "std_hank": r.std_hank,
                 "count_id": r.count_id,
-                "count_name": count.count_name if count else "",
                 "conversion_factor": r.conversion_factor,
 
                 "act_hank": r.act_hank,
@@ -172,11 +172,11 @@ def daily_entry_page():
                 "machine_id": m.id,
                 "machine_name": m.machine_name,
                 "spindles": m.spindles,
+                "count_name": cnt.count_name if cnt else "",
                 "speed": m.spdl_speed,
                 "tpi": m.tpi,
                 "std_hank": std_hank,
                 "count_id": m.allocated_count_id,
-                "count_name": cnt.count_name if cnt else "",
                 "conversion_factor": safe_float(cnt.conversion_factor) if cnt else 0,
 
                 "act_hank": 0.0,
@@ -223,9 +223,9 @@ def daily_entry_page():
         "machine_name",
         "spindles",
         "speed",
+        "count_name",
         "tpi",
         "std_hank",
-        "count_name",
 
         "act_hank",
         "pne_bondas",
@@ -288,8 +288,19 @@ def daily_entry_page():
         edited.at[i, "actual_prdn"] = actual
         edited.at[i, "waste_percent"] = calc_waste_percent(r["pne_bondas"], prod)
 
-        std_gps = calc_std_gps(r["target_kgs"], worked)
+        std_gps = calc_std_gps(
+            r["target_kgs"],
+            r["spindles"]
+        )
+        
         actual_gps = calc_actual_gps(actual, worked)
+
+        conv_40s = calc_40s_conv_gps(
+            safe_float(cnt.conv_40s_factor if cnt else 0),
+            actual_gps
+        )
+
+        edited.at[i, "conv_40s_gps"] = conv_40s
 
         edited.at[i, "std_gps"] = std_gps
         edited.at[i, "actual_gps"] = actual_gps
@@ -330,6 +341,7 @@ def daily_entry_page():
                 std_gps=r["std_gps"],
                 actual_gps=r["actual_gps"],
                 diff_gps=r["diff_gps"],
+                conv_40s_gps=r["conv_40s_gps"],
                 woh=r["woh"],
                 mw=r["mw"],
                 clg_lc=r["clg_lc"],
