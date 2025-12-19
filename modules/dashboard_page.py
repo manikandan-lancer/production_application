@@ -150,7 +150,7 @@ def dashboard_page():
             "Actual Production": r.actual_prdn,
             "Waste %": r.waste_percent,
 
-            "Std GPS": r.std_gps,
+            "Std GPS": (r.target_kgs / r.spindles * 1000) if r.spindles else 0,
             "Actual GPS": r.actual_gps,
             "Diff (+/-)": r.diff_gps,
             "40s Conv GPS": r.conv_40s_gps,
@@ -170,7 +170,7 @@ def dashboard_page():
         })
 
     df = pd.DataFrame(data)
-    HIDDEN_COLS = ["conversion_factor", "conv_40s_factor"]
+    HIDDEN_COLS = ["Conversion Factor", "40s Conv Factor"]
 
     numeric_cols = df.select_dtypes(include=["float", "int"]).columns
 
