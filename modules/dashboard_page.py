@@ -94,7 +94,7 @@ def dashboard_page():
     data = []
 
     for r in rows:
-        machine = session.query(Machine).get(r.machine_id)
+        machine = session.get(Machine, r.machine_id)
         count = session.query(CountMaster).get(r.count_id)
         emp = session.query(Employee).get(r.employee_id) if r.employee_id else None
         shift = session.query(Shift).get(r.shift_id)
@@ -151,6 +151,29 @@ def dashboard_page():
     # TABLE DISPLAY
     # -------------------------------
     numeric_cols = df.select_dtypes(include=["float", "int"]).columns
+
+    st.markdown("""
+    <style>
+    /* Sticky header */
+    div[data-testid="stDataFrame"] thead th {
+        position: sticky;
+        top: 0;
+        background-color: #f9fafb;
+        z-index: 3;
+    }
+
+    /* Freeze Machine column (5th column) */
+    div[data-testid="stDataFrame"] tbody tr td:nth-child(5),
+    div[data-testid="stDataFrame"] thead tr th:nth-child(5) {
+        position: sticky;
+        left: 0;
+        background-color: #ffffff;
+        z-index: 2;
+        font-weight: 600;
+        border-right: 1px solid #e5e7eb;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
     st.dataframe(
         df.style.format({col: "{:.2f}" for col in numeric_cols}),
