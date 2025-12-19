@@ -186,7 +186,7 @@ def daily_entry_page():
     edited = st.data_editor(
         df,
         disabled=[
-            "machine_name","count_name","speed","tpi","spindles","std_hank","worked_spindles",
+            "machine_name","spindles","std_hank","worked_spindles",
             "target_kgs","actual_prdn","waste_percent",
             "std_gps","actual_gps","diff_gps","total_loss","stop_min"
         ],
@@ -246,3 +246,17 @@ def daily_entry_page():
         session.commit()
         st.success("✅ Saved successfully")
         st.rerun()
+    st.divider() 
+    st.subheader("📌 Shift Production Summary") 
+    c1, c2, c3 = st.columns(3) 
+    with c1: 
+        st.metric("🎯 Total Target Kgs", round(edited["target_kgs"].sum(), 2)) 
+        st.metric("⚙️ Total Production Kgs", round(edited["prod_kgs"].sum(), 2)) 
+
+    with c2: 
+        st.metric("📦 Actual Production", round(edited["actual_prdn"].sum(), 2)) 
+        st.metric("🧵 Total Pne Bondas", round(edited["pne_bondas"].sum(), 2)) 
+    
+    with c3: 
+        st.metric("⏱️ Total Stop Minutes", round(edited["stop_min"].sum(), 2)) 
+        st.metric("♻️ Avg Waste %", round( edited["waste_percent"].mean(), 2 ))
