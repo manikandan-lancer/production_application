@@ -182,6 +182,7 @@ def daily_entry_page():
             })
 
     df = pd.DataFrame(rows).set_index("machine_name")
+    HIDDEN_COLS = ["machine_id", "count_id", "conversion_factor"]
 
     edited = st.data_editor(
         df,
@@ -191,6 +192,7 @@ def daily_entry_page():
             "worked_spindles","prod_kgs","actual_prdn",
             "waste_percent","total_loss","stop_min"
         ],
+        column_order=[c for c in df.columns if c not in HIDDEN_COLS],
         use_container_width=True,
         height=650
     )
@@ -207,7 +209,11 @@ def daily_entry_page():
         prod = calc_prod_kgs(r["conversion_factor"], r["spindles"], r["act_hank"])
         actual = calc_actual_prdn(prod, r["pne_bondas"])
 
-        std_gps = calc_std_gps(r["target_kgs"], r["spindles"])
+        std_gps = (
+            (nz(r["target_kgs"]) / nz(r["spindles"])) * 1000
+            if nz(r["spindles"]) > 0
+            else 0
+        )
         actual_gps = calc_actual_gps(actual, worked)
         diff = calc_diff_gps(std_gps, actual_gps)
 

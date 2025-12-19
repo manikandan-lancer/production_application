@@ -170,12 +170,14 @@ def dashboard_page():
         })
 
     df = pd.DataFrame(data)
+    HIDDEN_COLS = ["conversion_factor", "conv_40s_factor"]
 
     numeric_cols = df.select_dtypes(include=["float", "int"]).columns
 
     # ---------------- TABLE ----------------
     st.dataframe(
         df.style.format({col: "{:.2f}" for col in numeric_cols}),
+        column_order=[c for c in df.columns if c not in HIDDEN_COLS],
         use_container_width=True,
         height=650
     )
