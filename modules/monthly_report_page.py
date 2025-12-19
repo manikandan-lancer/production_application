@@ -49,7 +49,9 @@ def monthly_report_page():
             key="monthly_mill"
         )
 
-    with col3:
+    col4, col5, col6 = st.columns(3)
+
+    with col4:
         depts = session.query(Department).all()
         dept_map = {d.id: d.department_name for d in depts}
         dept_id = st.selectbox(
@@ -58,9 +60,7 @@ def monthly_report_page():
             key="monthly_dept"
         )
 
-    col4, col5, col6 = st.columns(3)
-
-    with col4:
+    with col5:
         shifts = session.query(Shift).all()
         shift_map = {s.id: s.shift_name for s in shifts}
         shift_id = st.selectbox(
@@ -69,7 +69,7 @@ def monthly_report_page():
             key="monthly_shift"
         )
 
-    with col5:
+    with col6:
         counts = session.query(CountMaster).all()
         count_map = {c.id: c.count_name for c in counts}
         count_id = st.selectbox(
@@ -78,14 +78,14 @@ def monthly_report_page():
             key="monthly_count"
         )
 
-    with col6:
-        employees = session.query(Employee).all()
-        emp_map = {e.id: f"{e.employee_no} - {e.employee_name}" for e in employees}
-        emp_id = st.selectbox(
-            "Employee", [None] + list(emp_map.keys()),
-            format_func=lambda x: "All" if x is None else emp_map[x],
-            key="monthly_emp"
-        )
+    # with col6:
+    #     employees = session.query(Employee).all()
+    #     emp_map = {e.id: f"{e.employee_no} - {e.employee_name}" for e in employees}
+    #     emp_id = st.selectbox(
+    #         "Employee", [None] + list(emp_map.keys()),
+    #         format_func=lambda x: "All" if x is None else emp_map[x],
+    #         key="monthly_emp"
+    #     )
 
     st.divider()
 
@@ -127,8 +127,8 @@ def monthly_report_page():
         q = q.filter(DailyProduction.shift_id == shift_id)
     if count_id:
         q = q.filter(DailyProduction.count_id == count_id)
-    if emp_id:
-        q = q.filter(DailyProduction.employee_id == emp_id)
+    # if emp_id:
+    #     q = q.filter(DailyProduction.employee_id == emp_id)
 
     q = (
         q.group_by(Machine.machine_name, CountMaster.count_name)
