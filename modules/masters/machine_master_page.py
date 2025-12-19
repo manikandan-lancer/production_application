@@ -9,11 +9,9 @@ from utils.calc_engine import safe_float, calc_std_hank
 
 
 # -------------------------------------------------------
-# RESET CALLBACK (✅ REQUIRED)
+# RESET CALLBACK
 # -------------------------------------------------------
 def reset_machine_form():
-    st.session_state.mm_mill = None
-    st.session_state.mm_dept = None
     st.session_state.mm_name = ""
     st.session_state.mm_spindles = 0
     st.session_state.mm_speed = 0.0
@@ -22,7 +20,7 @@ def reset_machine_form():
 
 
 # -------------------------------------------------------
-# MACHINE MASTER PAGE — FINAL & SAFE
+# MACHINE MASTER PAGE
 # -------------------------------------------------------
 def machine_master_page():
 
@@ -38,19 +36,6 @@ def machine_master_page():
 
     session: Session = next(get_session())
 
-    # ---------- SESSION STATE DEFAULTS ----------
-    defaults = {
-        "mm_mill": None,
-        "mm_dept": None,
-        "mm_name": "",
-        "mm_spindles": 0,
-        "mm_speed": 0.0,
-        "mm_tpi": 0.0,
-        "mm_count": None,
-    }
-    for k, v in defaults.items():
-        st.session_state.setdefault(k, v)
-
     # ---------- LOAD MASTERS ----------
     mills = session.query(Mill).all()
     depts = session.query(Department).all()
@@ -61,25 +46,42 @@ def machine_master_page():
     count_map = {c.id: c.count_name for c in counts}
 
     # -------------------------------------------------------
+    # 🔍 CONTEXT FILTER (IMPORTANT FIX)
+    # -------------------------------------------------------
+    st.subheader("🔍 Select Context")
+
+    f1, f2 = st.columns(2)
+
+    with f1:
+        filter_mill_id = st.selectbox(
+            "Mill",
+            mill_map.keys(),
+            format_func=lambda x: mill_map[x],
+            key="mm_mill_filter"
+        )
+
+    with f2:
+        filter_dept_id = st.selectbox(
+            "Department",
+            dept_map.keys(),
+            format_func=lambda x: dept_map[x],
+            key="mm_dept_filter"
+        )
+
+    st.divider()
+
+    # -------------------------------------------------------
     # ADD MACHINE FORM
     # -------------------------------------------------------
     st.subheader("➕ Add New Machine")
 
-    with st.form("machine_add_form", clear_on_submit=False):
+    with st.form("machine_add_form"):
 
         c1, c2 = st.columns(2)
 
         with c1:
-            mill_id = st.selectbox(
-                "Mill", mill_map.keys(),
-                format_func=lambda x: mill_map[x],
-                key="mm_mill"
-            )
-            dept_id = st.selectbox(
-                "Department", dept_map.keys(),
-                format_func=lambda x: dept_map[x],
-                key="mm_dept"
-            )
+            st.text_input("Mill", mill_map[filter_mill_id], disabled=True)
+            st.text_input("Department", dept_map[filter_dept_id], disabled=True)
             machine_name = st.text_input("Machine Name", key="mm_name")
 
         with c2:
@@ -93,7 +95,6 @@ def machine_master_page():
                 key="mm_count"
             )
 
-        # STD Hank Preview
         std_eff = safe_float(
             session.get(CountMaster, allocated_count_id).std_hank_eff
         ) if allocated_count_id else 0
@@ -114,8 +115,8 @@ def machine_master_page():
 
         exists_machine = session.query(Machine).filter(
             Machine.machine_name == name_clean,
-            Machine.mill_id == mill_id,
-            Machine.department_id == dept_id,
+            Machine.mill_id == filter_mill_id,
+            Machine.department_id == filter_dept_id,
             Machine.is_active == True
         ).first()
 
@@ -124,8 +125,8 @@ def machine_master_page():
             return
 
         session.add(Machine(
-            mill_id=mill_id,
-            department_id=dept_id,
+            mill_id=filter_mill_id,
+            department_id=filter_dept_id,
             machine_name=name_clean,
             spindles=spindles,
             spdl_speed=spdl_speed,
@@ -144,8 +145,16 @@ def machine_master_page():
     st.divider()
     st.subheader("📄 Existing Machines")
 
-    q = session.query(Machine).filter(Machine.is_active == True)
-    machines = q.order_by(Machine.machine_name).all()
+    machines = (
+        session.query(Machine)
+        .filter(
+            Machine.is_active == True,
+            Machine.mill_id == filter_mill_id,
+            Machine.department_id == filter_dept_id
+        )
+        .order_by(Machine.machine_name)
+        .all()
+    )
 
     rows = []
     for m in machines:
@@ -154,14 +163,16 @@ def machine_master_page():
 
         rows.append({
             "ID": m.id,
-            "Mill": mill_map[m.mill_id],
-            "Department": dept_map[m.department_id],
             "Machine Name": m.machine_name,
             "Spindles": m.spindles,
             "Allocated Count": m.allocated_count_id,
             "Speed": float(m.spdl_speed or 0),
             "TPI": float(m.tpi or 0),
-            "STD Hank": calc_std_hank(m.spdl_speed, m.tpi, safe_float(c.std_hank_eff) if c else 0),
+            "STD Hank": calc_std_hank(
+                m.spdl_speed,
+                m.tpi,
+                safe_float(c.std_hank_eff) if c else 0
+            ),
             "Status": "🔒 Used" if used else "🟢 Free",
             "Delete": False,
         })
@@ -170,7 +181,20 @@ def machine_master_page():
         pd.DataFrame(rows),
         use_container_width=True,
         height=520,
-        hide_index=True
+        hide_index=True,
+        column_config={
+            "ID": st.column_config.NumberColumn(disabled=True),
+            "Machine Name": st.column_config.TextColumn(),
+            "Allocated Count": st.column_config.SelectboxColumn(
+                options=list(count_map.keys()),
+                format_func=lambda x: count_map.get(x, "")
+            ),
+            "STD Hank": st.column_config.NumberColumn(disabled=True),
+            "Status": st.column_config.TextColumn(disabled=True),
+            "Delete": st.column_config.CheckboxColumn(
+                help="Only 🟢 Free machines can be deleted"
+            ),
+        }
     )
 
     # -------------------------------------------------------
@@ -179,6 +203,9 @@ def machine_master_page():
     if st.button("💾 Update Machine Records"):
         for _, r in editor.iterrows():
             m = session.get(Machine, r["ID"])
+            if not m:
+                continue
+
             if r["Delete"] and r["Status"] == "🟢 Free":
                 m.is_active = False
             else:
@@ -190,3 +217,4 @@ def machine_master_page():
 
         session.commit()
         st.success("✔ Machine Master Updated")
+        st.info("Daily Entry & Dashboard updated automatically.")

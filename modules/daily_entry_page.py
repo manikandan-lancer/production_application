@@ -186,7 +186,7 @@ def daily_entry_page():
     edited = st.data_editor(
         df,
         disabled=[
-            "machine_name","spindles","std_hank","worked_spindles",
+            "machine_name","count_name","speed","tpi","spindles","std_hank","worked_spindles",
             "target_kgs","actual_prdn","waste_percent",
             "std_gps","actual_gps","diff_gps","total_loss","stop_min"
         ],
