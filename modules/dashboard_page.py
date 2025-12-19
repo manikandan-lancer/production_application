@@ -100,18 +100,18 @@ def dashboard_page():
         shift = session.query(Shift).get(r.shift_id)
 
         data.append({
+            "Machine": machine.machine_name if machine else "",
             "Date": r.date,
             "Mill": mill_map.get(r.mill_id),
             "Department": dept_map.get(r.department_id),
             "Shift": shift.shift_name if shift else "",
-            "Machine": machine.machine_name if machine else "",
 
             "Spindles": r.spindles,
+            "Count": count.count_name if count else "",
             "Speed": r.spdl_speed,
             "TPI": r.tpi,
             "Std Hank": r.std_hank,
 
-            "Count": count.count_name if count else "",
             "Conversion Factor": r.conversion_factor,
             "40s Conv Factor": getattr(count, "conv_40s_factor", 0),
 
@@ -158,17 +158,17 @@ def dashboard_page():
     div[data-testid="stDataFrame"] thead th {
         position: sticky;
         top: 0;
-        background-color: #f9fafb;
-        z-index: 3;
+        background: #f9fafb;
+        z-index: 4;
     }
 
-    /* Freeze Machine column (5th column) */
-    div[data-testid="stDataFrame"] tbody tr td:nth-child(5),
-    div[data-testid="stDataFrame"] thead tr th:nth-child(5) {
+    /* ✅ Freeze FIRST visible column (Machine) */
+    div[data-testid="stDataFrame"] tbody tr td:first-of-type,
+    div[data-testid="stDataFrame"] thead tr th:first-of-type {
         position: sticky;
         left: 0;
-        background-color: #ffffff;
-        z-index: 2;
+        background: white;
+        z-index: 3;
         font-weight: 600;
         border-right: 1px solid #e5e7eb;
     }

@@ -30,33 +30,23 @@ def daily_entry_page():
     # --------- LAYOUT FIXES (NO STRUCTURE CHANGE) ----------
     st.markdown("""
     <style>
-    /* Reduce top whitespace */
-    .block-container {
-        padding-top: 0.8rem;
-        padding-bottom: 0rem;
-    }
-
     /* Sticky header */
-    div[data-testid="stDataEditor"] thead tr th {
+    div[data-testid="stDataEditor"] thead th {
         position: sticky;
         top: 0;
-        background-color: #f9fafb;
+        background: #f9fafb;
         z-index: 4;
     }
 
-    /* Freeze Machine Name column (2nd column) */
-    div[data-testid="stDataEditor"] tbody tr td:nth-child(2),
-    div[data-testid="stDataEditor"] thead tr th:nth-child(2) {
+    /* ✅ Freeze FIRST visible column (Machine Name) */
+    div[data-testid="stDataEditor"] tbody tr td:first-of-type,
+    div[data-testid="stDataEditor"] thead tr th:first-of-type {
         position: sticky;
         left: 0;
-        background-color: #ffffff;
+        background: white;
         z-index: 3;
-        border-right: 1px solid #e5e7eb;
-    }
-
-    /* Optional: subtle highlight */
-    div[data-testid="stDataEditor"] tbody tr td:nth-child(2) {
         font-weight: 600;
+        border-right: 1px solid #e5e7eb;
     }
     </style>
     """, unsafe_allow_html=True)
