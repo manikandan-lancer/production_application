@@ -244,51 +244,51 @@ def daily_entry_page():
             st.error("❌ Data already exists for this Date / Mill / Department / Shift")
             return
 
+        # 1️⃣ Delete existing shift data (if any)
+        session.query(DailyProduction).filter(
+            DailyProduction.date == date,
+            DailyProduction.mill_id == mill_id,
+            DailyProduction.department_id == dept_id,
+            DailyProduction.shift_id == shift_id
+        ).delete()
+
+        # 2️⃣ Insert fresh rows
         for _, r in edited.iterrows():
-            session.add(
-                DailyProduction(
-                    date=date,
-                    mill_id=mill_id,
-                    department_id=dept_id,
-                    shift_id=shift_id,
-
-                    machine_id=r["machine_id"],
-                    count_id=r["count_id"],
-
-                    spindles=r["spindles"],
-                    spdl_speed=r["speed"],
-                    tpi=r["tpi"],
-                    std_hank=r["std_hank"],
-                    conversion_factor=r["conversion_factor"],
-
-                    act_hank=r["act_hank"],
-                    pne_bondas=r["pne_bondas"],
-
-                    worked_spindles=r["worked_spindles"],
-                    target_kgs=r["target_kgs"],
-                    prod_kgs=r["prod_kgs"],
-                    actual_prdn=r["actual_prdn"],
-                    waste_percent=r["waste_percent"],
-
-                    std_gps=r["std_gps"],
-                    actual_gps=r["actual_gps"],
-                    diff_gps=r["diff_gps"],
-                    conv_40s_gps=r.get("conv_40s_gps", 0),
-
-                    woh=r["woh"],
-                    mw=r["mw"],
-                    clg_lc=r["clg_lc"],
-                    er=r["er"],
-                    la_pf=r["la_pf"],
-                    bss=r["bss"],
-                    lap=r["lap"],
-                    dd=r["dd"],
-
-                    total_loss=r["total_loss"],
-                    stop_min=r["stop_min"],
-                    remarks=r["remarks"]
-                )
-            )
+            session.add(DailyProduction(
+                date=date,
+                mill_id=mill_id,
+                department_id=dept_id,
+                shift_id=shift_id,
+                machine_id=r["machine_id"],
+                count_id=r["count_id"],
+                spindles=r["spindles"],
+                spdl_speed=r["speed"],
+                tpi=r["tpi"],
+                std_hank=r["std_hank"],
+                conversion_factor=r["conversion_factor"],
+                act_hank=r["act_hank"],
+                pne_bondas=r["pne_bondas"],
+                worked_spindles=r["worked_spindles"],
+                target_kgs=r["target_kgs"],
+                prod_kgs=r["prod_kgs"],
+                actual_prdn=r["actual_prdn"],
+                waste_percent=r["waste_percent"],
+                std_gps=r["std_gps"],
+                actual_gps=r["actual_gps"],
+                diff_gps=r["diff_gps"],
+                conv_40s_gps=r.get("conv_40s_gps", 0),
+                woh=r["woh"],
+                mw=r["mw"],
+                clg_lc=r["clg_lc"],
+                er=r["er"],
+                la_pf=r["la_pf"],
+                bss=r["bss"],
+                lap=r["lap"],
+                dd=r["dd"],
+                total_loss=r["total_loss"],
+                stop_min=r["stop_min"],
+                remarks=r["remarks"]
+            ))
 
         session.commit()
         st.success("✅ Daily Production Saved Successfully")
