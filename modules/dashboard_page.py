@@ -8,67 +8,91 @@ from database.models import (
     Employee, CountMaster, DailyProduction
 )
 
-
 def dashboard_page():
-    st.title("📊 Production Dashboard")
+    st.markdown("""
+    <style>
+    /* Reduce top & section spacing */
+    .block-container {
+        padding-top: 0.6rem;
+        padding-bottom: 0.4rem;
+    }
+
+    /* Enable horizontal scrolling */
+    div[data-testid="stDataFrame"] {
+        overflow-x: auto;
+    }
+
+    /* Sticky header */
+    div[data-testid="stDataFrame"] thead th {
+        position: sticky;
+        top: 0;
+        background: #f9fafb;
+        z-index: 5;
+    }
+
+    /* ✅ Freeze FIRST column (Machine) */
+    div[data-testid="stDataFrame"] tbody tr td:first-of-type,
+    div[data-testid="stDataFrame"] thead tr th:first-of-type {
+        position: sticky;
+        left: 0;
+        background: white;
+        z-index: 6;
+        font-weight: 600;
+        border-right: 1px solid #e5e7eb;
+        white-space: nowrap;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown("## 📊 Production Dashboard")
 
     session: Session = next(get_session())
 
-    # -------------------------------
-    # FILTER PANEL
-    # -------------------------------
+    # ---------------- FILTER PANEL ----------------
     col1, col2, col3, col4 = st.columns(4)
 
-    with col1:
-        date = st.date_input("Date", key="dashboard_date")
+    date = col1.date_input("Date", key="dashboard_date")
 
-    with col2:
-        mills = session.query(Mill).all()
-        mill_map = {m.id: m.mill_name for m in mills}
-        mill_id = st.selectbox(
-            "Mill", [None] + list(mill_map.keys()),
-            format_func=lambda x: "All" if x is None else mill_map[x]
-        )
+    mills = session.query(Mill).all()
+    mill_map = {m.id: m.mill_name for m in mills}
+    mill_id = col2.selectbox(
+        "Mill", [None] + list(mill_map.keys()),
+        format_func=lambda x: "All" if x is None else mill_map[x]
+    )
 
-    with col3:
-        depts = session.query(Department).all()
-        dept_map = {d.id: d.department_name for d in depts}
-        dept_id = st.selectbox(
-            "Department", [None] + list(dept_map.keys()),
-            format_func=lambda x: "All" if x is None else dept_map[x]
-        )
+    depts = session.query(Department).all()
+    dept_map = {d.id: d.department_name for d in depts}
+    dept_id = col3.selectbox(
+        "Department", [None] + list(dept_map.keys()),
+        format_func=lambda x: "All" if x is None else dept_map[x]
+    )
 
-    with col4:
-        shifts = session.query(Shift).all()
-        shift_map = {s.id: s.shift_name for s in shifts}
-        shift_id = st.selectbox(
-            "Shift", [None] + list(shift_map.keys()),
-            format_func=lambda x: "All" if x is None else shift_map[x]
-        )
+    shifts = session.query(Shift).all()
+    shift_map = {s.id: s.shift_name for s in shifts}
+    shift_id = col4.selectbox(
+        "Shift", [None] + list(shift_map.keys()),
+        format_func=lambda x: "All" if x is None else shift_map[x]
+    )
 
     col5, col6 = st.columns(2)
 
-    with col5:
-        employees = session.query(Employee).all()
-        emp_map = {e.id: f"{e.employee_no} - {e.employee_name}" for e in employees}
-        emp_id = st.selectbox(
-            "Employee", [None] + list(emp_map.keys()),
-            format_func=lambda x: "All" if x is None else emp_map[x]
-        )
+    employees = session.query(Employee).all()
+    emp_map = {e.id: f"{e.employee_no} - {e.employee_name}" for e in employees}
+    emp_id = col5.selectbox(
+        "Employee", [None] + list(emp_map.keys()),
+        format_func=lambda x: "All" if x is None else emp_map[x]
+    )
 
-    with col6:
-        counts = session.query(CountMaster).all()
-        count_map = {c.id: c.count_name for c in counts}
-        count_id = st.selectbox(
-            "Count", [None] + list(count_map.keys()),
-            format_func=lambda x: "All" if x is None else count_map[x]
-        )
+    counts = session.query(CountMaster).all()
+    count_map = {c.id: c.count_name for c in counts}
+    count_id = col6.selectbox(
+        "Count", [None] + list(count_map.keys()),
+        format_func=lambda x: "All" if x is None else count_map[x]
+    )
 
     st.divider()
 
-    # -------------------------------
-    # QUERY
-    # -------------------------------
+    # ---------------- QUERY ----------------
     q = session.query(DailyProduction).filter(DailyProduction.date == date)
 
     if mill_id:
@@ -88,19 +112,19 @@ def dashboard_page():
         st.warning("No records found.")
         return
 
-    # -------------------------------
-    # BUILD DATAFRAME
-    # -------------------------------
+    # ---------------- BUILD DATAFRAME ----------------
     data = []
 
     for r in rows:
         machine = session.get(Machine, r.machine_id)
-        count = session.query(CountMaster).get(r.count_id)
-        emp = session.query(Employee).get(r.employee_id) if r.employee_id else None
-        shift = session.query(Shift).get(r.shift_id)
+        count = session.get(CountMaster, r.count_id)
+        emp = session.get(Employee, r.employee_id) if r.employee_id else None
+        shift = session.get(Shift, r.shift_id)
 
         data.append({
+            # ✅ MACHINE FIRST (CRITICAL FOR FREEZE)
             "Machine": machine.machine_name if machine else "",
+
             "Date": r.date,
             "Mill": mill_map.get(r.mill_id),
             "Department": dept_map.get(r.department_id),
@@ -147,42 +171,16 @@ def dashboard_page():
 
     df = pd.DataFrame(data)
 
-    # -------------------------------
-    # TABLE DISPLAY
-    # -------------------------------
     numeric_cols = df.select_dtypes(include=["float", "int"]).columns
 
-    st.markdown("""
-    <style>
-    /* Sticky header */
-    div[data-testid="stDataFrame"] thead th {
-        position: sticky;
-        top: 0;
-        background: #f9fafb;
-        z-index: 4;
-    }
-
-    /* ✅ Freeze FIRST visible column (Machine) */
-    div[data-testid="stDataFrame"] tbody tr td:first-of-type,
-    div[data-testid="stDataFrame"] thead tr th:first-of-type {
-        position: sticky;
-        left: 0;
-        background: white;
-        z-index: 3;
-        font-weight: 600;
-        border-right: 1px solid #e5e7eb;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
+    # ---------------- TABLE ----------------
     st.dataframe(
         df.style.format({col: "{:.2f}" for col in numeric_cols}),
-        use_container_width=True
+        use_container_width=True,
+        height=650
     )
 
-    # -------------------------------
-    # PRODUCTION SUMMARY
-    # -------------------------------
+    # ---------------- SUMMARY ----------------
     st.divider()
     st.subheader("📌 Production Summary")
 
@@ -199,9 +197,7 @@ def dashboard_page():
     with c3:
         st.metric("📦 Actual Production", round(df["Actual Production"].sum(), 2))
 
-    # -------------------------------
-    # LOSS SUMMARY
-    # -------------------------------
+    # ---------------- LOSS SUMMARY ----------------
     st.subheader("📉 Loss Summary")
 
     loss_cols = ["W.O.H", "MW", "CLG/LC", "ER", "LA,PF", "BSS", "LAP", "DD"]
@@ -214,9 +210,7 @@ def dashboard_page():
 
     st.metric("🔻 Total Loss", round(df["Total Loss"].sum(), 2))
 
-    # -------------------------------
-    # EXPORT
-    # -------------------------------
+    # ---------------- EXPORT ----------------
     st.download_button(
         "⬇ Download CSV",
         df.to_csv(index=False).encode("utf-8"),

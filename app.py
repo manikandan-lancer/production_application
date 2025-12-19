@@ -21,13 +21,13 @@ st.markdown(
     <style>
     /* Reduce overall page padding */
     .block-container {
-        padding-top: 0.5rem !important;
-        padding-bottom: 0.5rem !important;
+        padding-top: 0.2rem;
+        padding-bottom: 0.2rem;
     }
 
     /* Reduce space after radio nav */
     div[role="radiogroup"] {
-        margin-bottom: 0.25rem !important;
+        margin-bottom: 0.25rem;
     }
 
     /* Style top navigation */
@@ -39,14 +39,18 @@ st.markdown(
 
     /* Reduce space after divider */
     hr {
-        margin-top: 0.25rem !important;
-        margin-bottom: 0.5rem !important;
+        margin-top: 0.25rem;
+        margin-bottom: 0.25re;
     }
 
     /* Reduce title spacing */
     h1, h2, h3 {
-        margin-top: 0.5rem !important;
-        margin-bottom: 0.5rem !important;
+        margin-top: 0.3rem;
+        margin-bottom: 0.3rem;
+    }
+
+    div[data-testid="stVerticalBlock"] > div {
+        gap: 0.6rem;
     }
     </style>
     """,
