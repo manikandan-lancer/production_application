@@ -182,6 +182,7 @@ def daily_entry_page():
             })
 
     df = pd.DataFrame(rows)
+    df = df.set_index("machine_name")
 
     edited = st.data_editor(
         df,
