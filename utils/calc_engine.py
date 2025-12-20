@@ -70,14 +70,14 @@ def calc_std_gps(target_kgs, spindles):
     return (target / sp) * 1000
 
 
-def calc_actual_gps(actual_prdn, worked_spindles):
-    actual = safe_float(actual_prdn)
-    worked = safe_float(worked_spindles)
+def calc_std_gps(target_kgs, spindles):
+    target = safe_float(target_kgs)
+    sp = safe_float(spindles)
 
-    if worked == 0:
+    if sp == 0:
         return 0.0
 
-    return (actual / worked) * 1000
+    return (target / sp) * 1000
 
 
 def calc_diff_gps(std_gps, actual_gps):
