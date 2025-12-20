@@ -18,7 +18,6 @@ def calc_std_hank(spdl_speed, tpi, std_hank_eff):
     if t == 0:
         return 0.0
 
-    # ❌ NO ROUNDING
     return (sp / t) * 0.01587394 * eff
 
 
@@ -38,6 +37,7 @@ def calc_conversion_factor(actual_count, spinning_eff):
 def calc_worked_spindles(spindles, stop_min):
     sp = safe_float(spindles)
     stop = safe_float(stop_min)
+
     return sp - (stop * sp / 480)
 
 
@@ -59,10 +59,16 @@ def calc_waste_percent(pne_bondas, prod_kgs):
         return 0.0
     return (safe_float(pne_bondas) / prod) * 100
 
-def calc_std_gps(target_kgs,spindles):
-    if not safe_float(target_kgs) or not safe_float(spindles) == 0:
+
+def calc_std_gps(target_kgs, spindles):
+    target = safe_float(target_kgs)
+    sp = safe_float(spindles)
+
+    if target == 0 or sp == 0:
         return 0.0
-    return (safe_float(target_kgs) / safe_float(spindles)) * 1000
+
+    return (target / sp) * 1000
+
 
 def calc_actual_gps(actual_prdn, worked_spindles):
     actual = safe_float(actual_prdn)
