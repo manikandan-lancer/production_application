@@ -282,6 +282,28 @@ def daily_entry_page():
             ))
 
         session.commit()
+
+        # ✅ RESET ENTRY FIELDS AFTER SAVE
+                # ✅ RESET ENTRY + CALCULATED FIELDS AFTER SAVE
+        RESET_COLS = [
+            # Entry fields
+            "act_hank", "pne_bondas", "remarks",
+
+            # Production outputs
+            "prod_kgs", "actual_prdn", "waste_percent",
+
+            # GPS
+            "std_gps", "actual_gps", "diff_gps",
+
+            # Loss & stops
+            "woh", "mw", "clg_lc", "er", "la_pf",
+            "bss", "lap", "dd", "total_loss", "stop_min",
+        ]
+
+        for col in RESET_COLS:
+            if col in edited.columns:
+                edited[col] = 0
+
         st.success("✅ Daily Production Saved Successfully")
         st.rerun()
 
