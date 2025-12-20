@@ -124,7 +124,6 @@ def daily_entry_page():
                 "std_gps": r.std_gps,
                 "actual_gps": r.actual_gps,
                 "diff_gps": r.diff_gps,
-                "conv_40s_gps": r.conv_40s_gps,
 
                 "woh": r.woh,
                 "mw": r.mw,
@@ -175,7 +174,6 @@ def daily_entry_page():
                 "std_gps": calc_std_gps(target_kgs, m.spindles),
                 "actual_gps": 0.0,
                 "diff_gps": 0.0,
-                "conv_40s_gps": 0.0,
 
                 "woh": 0.0,
                 "mw": 0.0,
@@ -191,7 +189,7 @@ def daily_entry_page():
             })
 
     df = pd.DataFrame(rows).set_index("machine_name")
-    HIDDEN_COLS = ["machine_id", "count_id", "conversion_factor", "conv_40s_gps"]
+    HIDDEN_COLS = ["machine_id", "count_id", "conversion_factor"]
 
     edited = st.data_editor(
         df,
@@ -224,23 +222,13 @@ def daily_entry_page():
         actual_gps = calc_actual_gps(actual, worked)
         diff = calc_diff_gps(std_gps, actual_gps)
 
-        # ✅ 40s GPS
-        count_obj = session.get(CountMaster, r["count_id"])
-        conv_40s = calc_40s_conv_gps(
-            safe_float(count_obj.conv_40s_factor) if count_obj else 0,
-            actual_gps
-        )
-
         edited.at[i, "worked_spindles"] = worked
         edited.at[i, "prod_kgs"] = prod
         edited.at[i, "actual_prdn"] = actual
         edited.at[i, "waste_percent"] = calc_waste_percent(r["pne_bondas"], prod)
-
         edited.at[i, "std_gps"] = std_gps
         edited.at[i, "actual_gps"] = actual_gps
         edited.at[i, "diff_gps"] = diff
-        edited.at[i, "conv_40s_gps"] = conv_40s
-
         edited.at[i, "total_loss"] = total_loss
         edited.at[i, "stop_min"] = total_loss
 
@@ -277,7 +265,6 @@ def daily_entry_page():
                 std_gps=nz(r["std_gps"]),
                 actual_gps=nz(r["actual_gps"]),
                 diff_gps=nz(r["diff_gps"]),
-                conv_40s_gps = nz(r["conv_40s_gps"]),
                 woh=nz(r["woh"]),
                 mw=nz(r["mw"]),
                 clg_lc=nz(r["clg_lc"]),
