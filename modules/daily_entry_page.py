@@ -29,32 +29,10 @@ def nz(v):
 
 
 # ----------------------------------------------------------
-# DAILY ENTRY PAGE
-# ----------------------------------------------------------
 def daily_entry_page():
 
-    st.markdown("""
-    <style>
-    .block-container { padding-top: 0.6rem; padding-bottom: 0.3rem; }
-
-    div[data-testid="stDataEditor"] thead th {
-        position: sticky;
-        top: 0;
-        background: #f9fafb;
-        z-index: 4;
-    }
-
-    div[data-testid="stDataEditor"] tbody tr td:first-of-type,
-    div[data-testid="stDataEditor"] thead tr th:first-of-type {
-        position: sticky;
-        left: 0;
-        background: white;
-        z-index: 3;
-        font-weight: 600;
-        border-right: 1px solid #e5e7eb;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+    if "reset_after_save" not in st.session_state:
+        st.session_state.reset_after_save = False
 
     st.markdown("## 📘 Daily Production Entry")
     session: Session = next(get_session())
@@ -75,7 +53,7 @@ def daily_entry_page():
     shift_map = {s.id: s.shift_name for s in shifts}
     shift_id = c4.selectbox("Shift", shift_map.keys(), format_func=lambda x: shift_map[x])
 
-    # ---------------- LOAD MACHINES ----------------
+    # ---------------- MACHINES ----------------
     machines = session.query(Machine).filter(
         Machine.is_active == True,
         Machine.mill_id == mill_id,
@@ -87,17 +65,16 @@ def daily_entry_page():
         return
 
     # ---------------- LOAD EXISTING ----------------
-    saved = session.query(DailyProduction).filter(
-        DailyProduction.date == date,
-        DailyProduction.mill_id == mill_id,
-        DailyProduction.department_id == dept_id,
-        DailyProduction.shift_id == shift_id
-    ).all()
+    saved = []
+    if not st.session_state.reset_after_save:
+        saved = session.query(DailyProduction).filter(
+            DailyProduction.date == date,
+            DailyProduction.shift_id == shift_id
+        ).all()
 
     rows = []
 
     if saved:
-        # 🔁 Load saved records as-is
         for r in saved:
             m = session.get(Machine, r.machine_id)
             c = session.get(CountMaster, r.count_id)
@@ -137,13 +114,10 @@ def daily_entry_page():
                 "stop_min": r.stop_min,
                 "remarks": r.remarks or ""
             })
-
     else:
-        # 🆕 Fresh entry (RESET STATE)
         for m in machines:
             cnt = session.get(CountMaster, m.allocated_count_id)
             std_eff = safe_float(cnt.std_hank_eff) if cnt else 0
-
             std_hank = calc_std_hank(m.spdl_speed, m.tpi, std_eff)
             target_kgs = calc_target_kgs(
                 safe_float(cnt.conversion_factor) if cnt else 0,
@@ -162,7 +136,6 @@ def daily_entry_page():
                 "std_hank": std_hank,
                 "conversion_factor": safe_float(cnt.conversion_factor) if cnt else 0,
 
-                # RESET FIELDS
                 "act_hank": 0.0,
                 "pne_bondas": 0.0,
                 "worked_spindles": m.spindles,
@@ -189,7 +162,6 @@ def daily_entry_page():
             })
 
     df = pd.DataFrame(rows).set_index("machine_name")
-    HIDDEN_COLS = ["machine_id", "count_id", "conversion_factor"]
 
     edited = st.data_editor(
         df,
@@ -201,12 +173,11 @@ def daily_entry_page():
             "actual_prdn", "waste_percent",
             "total_loss", "stop_min"
         ],
-        column_order=[c for c in df.columns if c not in HIDDEN_COLS],
         use_container_width=True,
         height=650
     )
 
-    # ---------------- LIVE CALCULATIONS ----------------
+    # ---------------- CALCULATIONS ----------------
     for i, r in edited.iterrows():
 
         total_loss = calc_total_loss(
@@ -220,7 +191,6 @@ def daily_entry_page():
 
         std_gps = calc_std_gps(r["target_kgs"], r["spindles"])
         actual_gps = calc_actual_gps(actual, worked)
-        diff = calc_diff_gps(std_gps, actual_gps)
 
         edited.at[i, "worked_spindles"] = worked
         edited.at[i, "prod_kgs"] = prod
@@ -228,21 +198,28 @@ def daily_entry_page():
         edited.at[i, "waste_percent"] = calc_waste_percent(r["pne_bondas"], prod)
         edited.at[i, "std_gps"] = std_gps
         edited.at[i, "actual_gps"] = actual_gps
-        edited.at[i, "diff_gps"] = diff
+        edited.at[i, "diff_gps"] = calc_diff_gps(std_gps, actual_gps)
         edited.at[i, "total_loss"] = total_loss
         edited.at[i, "stop_min"] = total_loss
 
     # ---------------- SAVE ----------------
     if st.button("💾 Save Daily Production"):
 
+        machine_ids = edited["machine_id"].tolist()
+
         session.query(DailyProduction).filter(
             DailyProduction.date == date,
-            DailyProduction.mill_id == mill_id,
-            DailyProduction.department_id == dept_id,
-            DailyProduction.shift_id == shift_id
-        ).delete()
+            DailyProduction.shift_id == shift_id,
+            DailyProduction.machine_id.in_(machine_ids)
+        ).delete(synchronize_session=False)
 
         for _, r in edited.iterrows():
+            cnt = session.get(CountMaster, r["count_id"])
+            conv_40s = calc_40s_conv_gps(
+                safe_float(cnt.conv_40s_factor) if cnt else 0,
+                r["actual_gps"]
+            )
+
             session.add(DailyProduction(
                 date=date,
                 mill_id=mill_id,
@@ -265,6 +242,7 @@ def daily_entry_page():
                 std_gps=nz(r["std_gps"]),
                 actual_gps=nz(r["actual_gps"]),
                 diff_gps=nz(r["diff_gps"]),
+                conv_40s_gps=conv_40s,
                 woh=nz(r["woh"]),
                 mw=nz(r["mw"]),
                 clg_lc=nz(r["clg_lc"]),
@@ -279,7 +257,8 @@ def daily_entry_page():
             ))
 
         session.commit()
-        st.success("✅ Daily Production Saved Successfully")
+        st.session_state.reset_after_save = True
+        st.success("✅ Saved & reset")
         st.rerun()
 
     # ---------------- SUMMARY ----------------
