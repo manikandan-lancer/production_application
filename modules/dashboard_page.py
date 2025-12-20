@@ -183,9 +183,11 @@ def dashboard_page():
         c1, c2 = st.columns(2)
 
         with c1:
-            if st.button("❌ Cancel"):
-                st.session_state.confirm_dashboard_delete = False
-                st.info("Deletion cancelled.")
+            with c1:
+                if st.button("❌ Cancel"):
+                    st.session_state.confirm_dashboard_delete = False
+                    st.info("Deletion cancelled.")
+                    st.rerun()
 
         with c2:
             if st.button("✅ Yes, Delete Permanently", type="primary"):
