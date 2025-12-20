@@ -15,7 +15,6 @@ from utils.calc_engine import (
     calc_actual_prdn,
     calc_waste_percent,
     calc_prod_kgs,
-    calc_std_gps,
     calc_actual_gps,
     calc_diff_gps,
     calc_total_loss,
@@ -34,11 +33,14 @@ def nz(v):
 # ----------------------------------------------------------
 def daily_entry_page():
 
+    # 🔐 RESET FLAG (CRITICAL)
+    if "reset_after_save" not in st.session_state:
+        st.session_state.reset_after_save = False
+
     st.markdown("""
     <style>
     .block-container { padding-top: 0.6rem; padding-bottom: 0.3rem; }
 
-    /* Sticky header */
     div[data-testid="stDataEditor"] thead th {
         position: sticky;
         top: 0;
@@ -46,7 +48,6 @@ def daily_entry_page():
         z-index: 4;
     }
 
-    /* Freeze Machine Name */
     div[data-testid="stDataEditor"] tbody tr td:first-of-type,
     div[data-testid="stDataEditor"] thead tr th:first-of-type {
         position: sticky;
@@ -104,6 +105,8 @@ def daily_entry_page():
             m = session.get(Machine, r.machine_id)
             c = session.get(CountMaster, r.count_id)
 
+            reset = st.session_state.reset_after_save
+
             rows.append({
                 "machine_id": r.machine_id,
                 "machine_name": m.machine_name,
@@ -114,27 +117,31 @@ def daily_entry_page():
                 "tpi": r.tpi,
                 "std_hank": r.std_hank,
                 "conversion_factor": r.conversion_factor,
-                "act_hank": r.act_hank,
-                "pne_bondas": r.pne_bondas,
-                "worked_spindles": r.worked_spindles,
+
+                # 🔁 RESETTABLE
+                "act_hank": 0.0 if reset else r.act_hank,
+                "pne_bondas": 0.0 if reset else r.pne_bondas,
+                "worked_spindles": r.spindles if reset else r.worked_spindles,
                 "target_kgs": r.target_kgs,
-                "prod_kgs": r.prod_kgs,
-                "actual_prdn": r.actual_prdn,
-                "waste_percent": r.waste_percent,
-                "std_gps": r.std_gps,
-                "actual_gps": r.actual_gps,
-                "diff_gps": r.diff_gps,
-                "woh": r.woh,
-                "mw": r.mw,
-                "clg_lc": r.clg_lc,
-                "er": r.er,
-                "la_pf": r.la_pf,
-                "bss": r.bss,
-                "lap": r.lap,
-                "dd": r.dd,
-                "total_loss": r.total_loss,
-                "stop_min": r.stop_min,
-                "remarks": r.remarks or ""
+                "prod_kgs": 0.0 if reset else r.prod_kgs,
+                "actual_prdn": 0.0 if reset else r.actual_prdn,
+                "waste_percent": 0.0 if reset else r.waste_percent,
+
+                "std_gps": 0.0 if reset else r.std_gps,
+                "actual_gps": 0.0 if reset else r.actual_gps,
+                "diff_gps": 0.0 if reset else r.diff_gps,
+
+                "woh": 0.0 if reset else r.woh,
+                "mw": 0.0 if reset else r.mw,
+                "clg_lc": 0.0 if reset else r.clg_lc,
+                "er": 0.0 if reset else r.er,
+                "la_pf": 0.0 if reset else r.la_pf,
+                "bss": 0.0 if reset else r.bss,
+                "lap": 0.0 if reset else r.lap,
+                "dd": 0.0 if reset else r.dd,
+                "total_loss": 0.0 if reset else r.total_loss,
+                "stop_min": 0.0 if reset else r.stop_min,
+                "remarks": ""
             })
     else:
         for m in machines:
@@ -182,6 +189,7 @@ def daily_entry_page():
             })
 
     df = pd.DataFrame(rows).set_index("machine_name")
+
     HIDDEN_COLS = ["machine_id", "count_id", "conversion_factor"]
 
     edited = st.data_editor(
@@ -197,44 +205,11 @@ def daily_entry_page():
         height=650
     )
 
-    # ---------------- LIVE CALCULATIONS ----------------
-    for i, r in edited.iterrows():
+    # 🔓 CLEAR RESET FLAG AFTER FIRST RENDER
+    if st.session_state.reset_after_save:
+        st.session_state.reset_after_save = False
 
-        total_loss = calc_total_loss(
-            r["woh"], r["mw"], r["clg_lc"], r["er"],
-            r["la_pf"], r["bss"], r["lap"], r["dd"]
-        )
-
-        worked = calc_worked_spindles(r["spindles"], total_loss)
-        prod = calc_prod_kgs(r["conversion_factor"], r["spindles"], r["act_hank"])
-        actual = calc_actual_prdn(prod, r["pne_bondas"])
-
-        std_gps = (
-            (nz(r["target_kgs"]) / nz(r["spindles"])) * 1000
-            if nz(r["spindles"]) > 0
-            else 0
-        )
-        actual_gps = calc_actual_gps(actual, worked)
-        diff = calc_diff_gps(std_gps, actual_gps)
-
-        count_obj = session.get(CountMaster, r["count_id"]) if r["count_id"] else None
-        conv_40s = calc_40s_conv_gps(
-            safe_float(count_obj.conv_40s_factor) if count_obj else 0,
-            actual_gps
-        )
-
-        edited.at[i, "total_loss"] = total_loss
-        edited.at[i, "stop_min"] = total_loss
-        edited.at[i, "worked_spindles"] = worked
-        edited.at[i, "prod_kgs"] = prod
-        edited.at[i, "actual_prdn"] = actual
-        edited.at[i, "waste_percent"] = calc_waste_percent(r["pne_bondas"], prod)
-        edited.at[i, "std_gps"] = std_gps
-        edited.at[i, "actual_gps"] = actual_gps
-        edited.at[i, "diff_gps"] = diff
-        edited.at[i, "conv_40s_gps"] = conv_40s
-
-    # ---------------- SAVE (OVERWRITE SHIFT) ----------------
+    # ---------------- SAVE ----------------
     if st.button("💾 Save Daily Production"):
 
         session.query(DailyProduction).filter(
@@ -267,7 +242,6 @@ def daily_entry_page():
                 std_gps=nz(r["std_gps"]),
                 actual_gps=nz(r["actual_gps"]),
                 diff_gps=nz(r["diff_gps"]),
-                conv_40s_gps=nz(r.get("conv_40s_gps", 0)),
                 woh=nz(r["woh"]),
                 mw=nz(r["mw"]),
                 clg_lc=nz(r["clg_lc"]),
@@ -282,28 +256,7 @@ def daily_entry_page():
             ))
 
         session.commit()
-
-        # ✅ RESET ENTRY FIELDS AFTER SAVE
-                # ✅ RESET ENTRY + CALCULATED FIELDS AFTER SAVE
-        RESET_COLS = [
-            # Entry fields
-            "act_hank", "pne_bondas", "remarks",
-
-            # Production outputs
-            "prod_kgs", "actual_prdn", "waste_percent",
-
-            # GPS
-            "std_gps", "actual_gps", "diff_gps",
-
-            # Loss & stops
-            "woh", "mw", "clg_lc", "er", "la_pf",
-            "bss", "lap", "dd", "total_loss", "stop_min",
-        ]
-
-        for col in RESET_COLS:
-            if col in edited.columns:
-                edited[col] = 0
-
+        st.session_state.reset_after_save = True
         st.success("✅ Daily Production Saved Successfully")
         st.rerun()
 
